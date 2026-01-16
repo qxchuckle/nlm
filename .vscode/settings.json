@@ -1,0 +1,26 @@
+{
+  // 指定 typescript 的路径，使其能够找到项目中安装的 typescript。
+  "typescript.tsdk": "node_modules/typescript/lib",
+  // 设置默认格式化程序
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  // 保存时自动格式化
+  "editor.formatOnSave": true,
+  "editor.tabSize": 2,
+  "editor.insertSpaces": true,
+  "editor.detectIndentation": false,
+  // 启用 eslint 的格式化能力
+  "eslint.format.enable": true,
+  // eslint 会在检查出错误时，给出对应的文档链接地址
+  "eslint.codeAction.showDocumentation": {
+    "enable": true
+  },
+  "eslint.probe": [
+    "javascript",
+    "typescript"
+  ],
+  "eslint.nodePath": "node_modules",
+  // 在保存时，自动修复 lint 错误。
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit",
+  },
+}

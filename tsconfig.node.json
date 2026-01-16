@@ -1,0 +1,23 @@
+{
+  // 继承基础配置
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    // 该 ts project 将被视作一个部分，通过项目引用(Project References)功能集成到一个 tsconfig.json 中
+    "composite": true,
+    "lib": [
+      "ESNext"
+    ],
+    "types": [
+      "node"
+    ],
+  },
+  "include": [
+    "**/*",
+    "*.json"
+  ],
+  "exclude": [
+    "**/lib",
+    "**/node_modules",
+    "src"
+  ]
+}
