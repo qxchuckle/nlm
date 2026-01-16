@@ -156,7 +156,10 @@ export const readFileSync = (path: string): string => {
 /**
  * 写入文件内容
  */
-export const writeFile = async (path: string, content: string): Promise<void> => {
+export const writeFile = async (
+  path: string,
+  content: string,
+): Promise<void> => {
   await fs.ensureDir(dirname(path));
   await fs.writeFile(path, content, 'utf-8');
 };
@@ -183,7 +186,10 @@ export const isSymlink = (path: string): boolean => {
 /**
  * 创建符号链接
  */
-export const createSymlink = async (target: string, path: string): Promise<void> => {
+export const createSymlink = async (
+  target: string,
+  path: string,
+): Promise<void> => {
   await fs.ensureDir(dirname(path));
   await fs.ensureSymlink(target, path, 'junction');
 };

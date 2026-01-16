@@ -26,7 +26,10 @@ export const getPackagesDir = (): string => {
 /**
  * 获取指定包的 store 路径
  */
-export const getPackageStoreDir = (packageName: string, version?: string): string => {
+export const getPackageStoreDir = (
+  packageName: string,
+  version?: string,
+): string => {
   const base = join(getPackagesDir(), packageName);
   return version ? join(base, version) : base;
 };

@@ -1,5 +1,5 @@
 import { join } from 'path';
-import { InstallOptions } from '../types';
+import { InstallOptions, NlmError } from '../types';
 import { LATEST_VERSION, getPackageStoreDir } from '../constants';
 import {
   parsePackageName,
@@ -39,9 +39,10 @@ export const install = async (options: InstallOptions): Promise<void> => {
 
   // 检查当前目录是否是有效项目
   if (!isValidProject(workingDir)) {
-    logger.error('当前目录不是有效的项目（缺少 package.json 或 node_modules）');
     logger.info('请先运行 npm install / yarn / pnpm install');
-    process.exit(1);
+    throw new NlmError(
+      '当前目录不是有效的项目（缺少 package.json 或 node_modules）',
+    );
   }
 
   // 如果没有指定包名，走 update 流程
@@ -55,15 +56,13 @@ export const install = async (options: InstallOptions): Promise<void> => {
   const { name, version: requestedVersion } = parsePackageName(packageName);
 
   if (!name) {
-    logger.error(`无效的包名: ${packageName}`);
-    process.exit(1);
+    throw new NlmError(`无效的包名: ${packageName}`);
   }
 
   // 检查包是否存在于 store
   if (!packageExistsInStore(name)) {
-    logger.error(`包 ${logger.pkg(name)} 不存在于 store`);
     logger.info(`请先在 ${name} 项目中运行 ${logger.cmd('nlm push')}`);
-    process.exit(1);
+    throw new NlmError(`${logger.pkg(name)} 不存在于 store`);
   }
 
   // 确定要安装的版本
@@ -75,8 +74,7 @@ export const install = async (options: InstallOptions): Promise<void> => {
     const latestVersion = getLatestVersion(packageDir);
 
     if (!latestVersion) {
-      logger.error(`包 ${logger.pkg(name)} 没有可用版本`);
-      process.exit(1);
+      throw new NlmError(`${logger.pkg(name)} 没有可用版本`);
     }
 
     versionToInstall = latestVersion;
@@ -84,14 +82,12 @@ export const install = async (options: InstallOptions): Promise<void> => {
   } else {
     // 检查指定版本是否存在
     if (!packageVersionExistsInStore(name, versionToInstall)) {
-      logger.error(`版本 ${logger.version(versionToInstall)} 不存在`);
-
       const availableVersions = getPackageVersionsInStore(name);
       if (availableVersions.length > 0) {
         logger.info(`可用版本: ${availableVersions.join(', ')}`);
       }
 
-      process.exit(1);
+      throw new NlmError(`版本 ${logger.version(versionToInstall)} 不存在`);
     }
   }
 
@@ -108,9 +104,12 @@ export const install = async (options: InstallOptions): Promise<void> => {
     }
   }
 
-  logger.info(`安装 ${logger.pkg(name)}@${logger.version(versionToInstall)}`);
-
   // 复制包到 node_modules
+  const startTime = Date.now();
+  logger.spin(
+    `安装 ${logger.pkg(name)}@${logger.version(versionToInstall)}...`,
+  );
+
   const copyResult = await copyPackageToProject(
     name,
     versionToInstall,
@@ -119,6 +118,7 @@ export const install = async (options: InstallOptions): Promise<void> => {
   );
 
   // 处理依赖冲突
+  logger.spinText(`处理依赖冲突...`);
   const projectPkg = readPackageManifest(workingDir);
   const nlmPkgPath = join(workingDir, 'node_modules', name);
   const nlmPkg = readPackageManifest(nlmPkgPath);
@@ -131,6 +131,7 @@ export const install = async (options: InstallOptions): Promise<void> => {
   }
 
   // 替换嵌套的同名包
+  logger.spinText(`替换嵌套包...`);
   const nlmPackageDir = join(workingDir, 'node_modules', name);
   await replaceNestedPackages(workingDir, name, nlmPackageDir);
 
@@ -143,7 +144,9 @@ export const install = async (options: InstallOptions): Promise<void> => {
   // 更新 store 使用记录
   addPackageUsage(name, workingDir);
 
-  logger.success(`安装完成`);
+  logger.spinSuccess(
+    `安装完成 ${logger.pkg(name, versionToInstall)} ${logger.duration(startTime)}`,
+  );
 };
 
 export default install;

@@ -1,13 +1,32 @@
-import { join } from 'path';
+import { join, resolve } from 'path';
 import { PackageManifest, PackageName } from '../types';
 import { readJsonSync, writeJsonSync, pathExistsSync } from './file';
+import packlist from 'npm-packlist';
+import logger from './logger';
+
+/**
+ * 创建 minimal arborist tree 对象
+ * 这样可以避免使用 arborist.loadActual() 扫描整个 node_modules
+ * 仅适用于没有 bundledDependencies 的包
+ */
+const createMinimalTree = (workingDir: string, pkg: PackageManifest) => {
+  const resolvedPath = resolve(workingDir);
+  return {
+    path: resolvedPath,
+    realpath: resolvedPath,
+    package: pkg,
+    isProjectRoot: true,
+    edgesOut: new Map(),
+    workspaces: null,
+  };
+};
 
 /**
  * 解析包名和版本
  * 支持格式: @scope/name@version, name@version, @scope/name, name
  */
 export const parsePackageName = (
-  packageName: string
+  packageName: string,
 ): { name: PackageName; version: string } => {
   // 匹配 @scope/name@version 或 name@version
   const match = packageName.match(/(^@[^/]+\/)?([^@]+)@?(.*)/);
@@ -23,7 +42,9 @@ export const parsePackageName = (
 /**
  * 读取 package.json
  */
-export const readPackageManifest = (workingDir: string): PackageManifest | null => {
+export const readPackageManifest = (
+  workingDir: string,
+): PackageManifest | null => {
   const packagePath = join(workingDir, 'package.json');
   try {
     const pkg = readJsonSync<PackageManifest>(packagePath);
@@ -41,7 +62,7 @@ export const readPackageManifest = (workingDir: string): PackageManifest | null 
  */
 export const writePackageManifest = (
   workingDir: string,
-  pkg: PackageManifest
+  pkg: PackageManifest,
 ): void => {
   const packagePath = join(workingDir, 'package.json');
   const indent = pkg.__indent || '  ';
@@ -88,4 +109,84 @@ export const getPackageScope = (name: string): string | null => {
     return null;
   }
   return name.split('/')[0];
+};
+
+/** packlist tree 类型 */
+type PackTree = Parameters<typeof packlist>[0];
+
+/**
+ * 检查包是否有 bundledDependencies
+ */
+const hasBundledDependencies = (pkg: PackageManifest): boolean => {
+  const bundled = pkg.bundleDependencies || pkg.bundledDependencies;
+  return !!(bundled && Array.isArray(bundled) && bundled.length > 0);
+};
+
+/**
+ * 检查包是否有 workspaces（monorepo）
+ */
+const hasWorkspaces = (pkg: PackageManifest): boolean => {
+  if (!pkg.workspaces) return false;
+  if (Array.isArray(pkg.workspaces)) {
+    return pkg.workspaces.length > 0;
+  }
+  // workspaces 对象格式: { packages: [...], nohoist: [...] }
+  return !!(pkg.workspaces.packages && pkg.workspaces.packages.length > 0);
+};
+
+/**
+ * 检查是否需要使用完整的 arborist
+ * 以下情况需要完整 arborist：
+ * 1. bundledDependencies - 需要遍历依赖树打包 bundled 依赖
+ * 2. workspaces (monorepo) - 需要正确处理工作区的 ignore 规则
+ */
+const needsFullArborist = (pkg: PackageManifest): string | false => {
+  if (hasBundledDependencies(pkg)) {
+    return 'bundledDependencies';
+  }
+  if (hasWorkspaces(pkg)) {
+    return 'workspaces';
+  }
+  return false;
+};
+
+/**
+ * 获取 pack tree
+ * 优化：简单包使用 minimal tree，避免扫描 node_modules
+ */
+export const getPackTree = async (workingDir: string): Promise<PackTree> => {
+  const startTime = Date.now();
+
+  const pkg = readPackageManifest(workingDir);
+  if (!pkg) {
+    throw new Error('无法读取 package.json');
+  }
+
+  const reason = needsFullArborist(pkg);
+  if (reason) {
+    // 需要完整 arborist 时使用 loadActual
+    const Arborist = (await import('@npmcli/arborist')).default;
+    const arborist = new Arborist({ path: workingDir });
+    const tree = await arborist.loadActual();
+    logger.debug(`arborist tree (${reason}) ${logger.duration(startTime)}`);
+    return tree;
+  }
+
+  // 简单包使用 minimal tree（快很多）
+  const tree = createMinimalTree(workingDir, pkg) as PackTree;
+  logger.debug(`minimal tree ${logger.duration(startTime)}`);
+  return tree;
+};
+
+/**
+ * 获取包的发布文件列表
+ */
+export const getPackFiles = async (workingDir: string): Promise<string[]> => {
+  const tree = await getPackTree(workingDir);
+
+  const startTime = Date.now();
+  const files = await packlist(tree);
+  logger.debug(`packlist ${logger.duration(startTime)}`);
+
+  return files;
 };

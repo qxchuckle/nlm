@@ -1,4 +1,15 @@
 /**
+ * NLM 命令错误
+ * 用于在命令执行中抛出错误，由外层统一捕获处理
+ */
+export class NlmError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'NlmError';
+  }
+}
+
+/**
  * 包名类型（带类型标记）
  */
 export type PackageName = string & { __packageName: true };
@@ -26,9 +37,17 @@ export interface PackageManifest {
   version: string;
   private?: boolean;
   bin?: string | { [name: string]: string };
+  main?: string;
+  browser?: string;
+  files?: string[];
   dependencies?: Dependencies;
   devDependencies?: Dependencies;
   peerDependencies?: Dependencies;
+  optionalDependencies?: Dependencies;
+  bundleDependencies?: string[];
+  bundledDependencies?: string[];
+  /** monorepo 工作区配置 */
+  workspaces?: string[] | { packages?: string[]; nohoist?: string[] };
   scripts?: { [name: string]: string };
   /** 内部使用：保存原始缩进 */
   __indent?: string;

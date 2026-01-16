@@ -1,7 +1,5 @@
 import fs from 'fs-extra';
 import { join } from 'path';
-import Arborist from '@npmcli/arborist';
-import packlist from 'npm-packlist';
 import { CopyResult } from '../types';
 import { getPackageStoreDir } from '../constants';
 import {
@@ -9,7 +7,7 @@ import {
   readSignatureFile,
   writeSignatureFile,
 } from '../core/hash';
-import { readPackageManifest } from '../utils/package';
+import { getPackFiles, readPackageManifest } from '../utils/package';
 import { ensureDirSync, removeSync, pathExistsSync } from '../utils/file';
 import logger from '../utils/logger';
 
@@ -40,10 +38,7 @@ export const copyPackageToStore = async (
   const storeDir = getPackageStoreDir(name, version);
 
   // 获取要发布的文件列表
-  const arborist = new Arborist({ path: workingDir });
-  const tree = await arborist.loadActual();
-  const files = await packlist(tree);
-
+  const files = await getPackFiles(workingDir);
   if (files.length === 0) {
     throw new Error('没有找到要发布的文件');
   }
@@ -54,8 +49,11 @@ export const copyPackageToStore = async (
   // 检查是否需要更新
   if (!force && pathExistsSync(storeDir)) {
     const existingSignature = readSignatureFile(storeDir);
+    logger.debug(
+      `${logger.pkg(name, version)} signature: exists=${existingSignature} current=${newSignature}`,
+    );
     if (existingSignature === newSignature) {
-      logger.info(`包 ${logger.pkg(name)} 内容未变化，跳过复制`);
+      logger.info(`${logger.pkg(name, version)} no change`);
       return {
         success: true,
         signature: newSignature,
@@ -76,9 +74,7 @@ export const copyPackageToStore = async (
   // 写入签名文件
   writeSignatureFile(storeDir, newSignature);
 
-  logger.success(
-    `已复制 ${logger.pkg(name)}@${logger.version(version)} 到 store`,
-  );
+  logger.success(`已复制 ${logger.pkg(name, version)} 到 store`);
 
   return {
     success: true,
@@ -103,7 +99,7 @@ export const copyPackageToProject = async (
   const storeDir = getPackageStoreDir(packageName, version);
 
   if (!pathExistsSync(storeDir)) {
-    throw new Error(`包 ${packageName}@${version} 不存在于 store`);
+    throw new Error(`${packageName}@${version} 不存在于 store`);
   }
 
   const destDir = join(targetDir, 'node_modules', packageName);
@@ -113,7 +109,7 @@ export const copyPackageToProject = async (
   if (!force && pathExistsSync(destDir)) {
     const existingSignature = readSignatureFile(destDir);
     if (existingSignature === storeSignature) {
-      logger.info(`包 ${logger.pkg(packageName)} 已是最新，跳过复制`);
+      logger.info(`${logger.pkg(packageName, version)} 已是最新，跳过复制`);
       return {
         success: true,
         signature: storeSignature,
@@ -129,7 +125,7 @@ export const copyPackageToProject = async (
   await fs.copy(storeDir, destDir);
 
   logger.success(
-    `已安装 ${logger.pkg(packageName)}@${logger.version(version)} 到 ${logger.path(destDir)}`,
+    `已安装 ${logger.pkg(packageName, version)} 到 ${logger.path(destDir)}`,
   );
 
   return {

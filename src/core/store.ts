@@ -34,7 +34,9 @@ export const writeStoreConfig = (config: StoreConfig): void => {
 /**
  * 获取包在 store 中的条目
  */
-export const getStorePackageEntry = (packageName: string): StorePackageEntry | null => {
+export const getStorePackageEntry = (
+  packageName: string,
+): StorePackageEntry | null => {
   const config = readStoreConfig();
   return config[packageName] || null;
 };
@@ -44,7 +46,7 @@ export const getStorePackageEntry = (packageName: string): StorePackageEntry | n
  */
 export const updateStorePackageEntry = (
   packageName: string,
-  entry: Partial<StorePackageEntry>
+  entry: Partial<StorePackageEntry>,
 ): void => {
   const config = readStoreConfig();
   const existing = config[packageName] || { target: '', usedBy: [] };
@@ -58,7 +60,10 @@ export const updateStorePackageEntry = (
 /**
  * 设置包的源路径
  */
-export const setPackageTarget = (packageName: string, targetPath: string): void => {
+export const setPackageTarget = (
+  packageName: string,
+  targetPath: string,
+): void => {
   const config = readStoreConfig();
   const existing = config[packageName] || { target: '', usedBy: [] };
   config[packageName] = {
@@ -71,14 +76,17 @@ export const setPackageTarget = (packageName: string, targetPath: string): void 
 /**
  * 添加使用此包的项目
  */
-export const addPackageUsage = (packageName: string, projectPath: string): void => {
+export const addPackageUsage = (
+  packageName: string,
+  projectPath: string,
+): void => {
   const config = readStoreConfig();
   const existing = config[packageName] || { target: '', usedBy: [] };
-  
+
   if (!existing.usedBy.includes(projectPath)) {
     existing.usedBy.push(projectPath);
   }
-  
+
   config[packageName] = existing;
   writeStoreConfig(config);
 };
@@ -86,23 +94,26 @@ export const addPackageUsage = (packageName: string, projectPath: string): void 
 /**
  * 移除使用此包的项目
  */
-export const removePackageUsage = (packageName: string, projectPath: string): void => {
+export const removePackageUsage = (
+  packageName: string,
+  projectPath: string,
+): void => {
   const config = readStoreConfig();
   const existing = config[packageName];
-  
+
   if (!existing) {
     return;
   }
-  
+
   existing.usedBy = existing.usedBy.filter((p) => p !== projectPath);
-  
+
   // 如果没有项目使用此包，且没有 target，则删除整个条目
   if (existing.usedBy.length === 0 && !existing.target) {
     delete config[packageName];
   } else {
     config[packageName] = existing;
   }
-  
+
   writeStoreConfig(config);
 };
 
@@ -127,7 +138,7 @@ export const packageExistsInStore = (packageName: string): boolean => {
  */
 export const packageVersionExistsInStore = (
   packageName: string,
-  version: string
+  version: string,
 ): boolean => {
   const versionDir = getPackageStoreDir(packageName, version);
   return pathExistsSync(versionDir);
@@ -177,7 +188,7 @@ export const getAllPackagesInStore = (): string[] => {
  */
 export const removePackageVersionFromStore = async (
   packageName: string,
-  version: string
+  version: string,
 ): Promise<void> => {
   const { remove } = await import('../utils/file');
   const versionDir = getPackageStoreDir(packageName, version);
@@ -187,7 +198,9 @@ export const removePackageVersionFromStore = async (
 /**
  * 删除整个包
  */
-export const removePackageFromStore = async (packageName: string): Promise<void> => {
+export const removePackageFromStore = async (
+  packageName: string,
+): Promise<void> => {
   const { remove } = await import('../utils/file');
   const packageDir = getPackageStoreDir(packageName);
   await remove(packageDir);

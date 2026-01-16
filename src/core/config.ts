@@ -51,18 +51,6 @@ export const getConfiguredPackageManager = (
 };
 
 /**
- * 设置包管理器
- */
-export const setPackageManager = (
-  workingDir: string,
-  pm: 'npm' | 'yarn' | 'pnpm',
-): void => {
-  const config = readConfig(workingDir);
-  config.packageManager = pm;
-  writeConfig(workingDir, config);
-};
-
-/**
  * 更新配置
  */
 export const updateConfig = (

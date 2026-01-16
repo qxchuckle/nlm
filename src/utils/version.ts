@@ -82,7 +82,7 @@ export const getLatestVersion = (packageDir: string): string => {
  */
 export const findBestMatchVersion = (
   availableVersions: string[],
-  range: string
+  range: string,
 ): string | null => {
   // 如果是 latest，返回最新版本
   if (range === 'latest' || !range) {
