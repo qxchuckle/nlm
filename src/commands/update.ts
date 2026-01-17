@@ -1,21 +1,9 @@
-import { UpdateOptions, NlmError } from '../types';
+import { NlmError } from '../types';
+import { getProjectPackageDir } from '../constants';
+import { parsePackageName, isValidProject } from '../utils/package';
+import { resolveVersion } from '../utils/version';
+import { packageExistsInStore, getPackageVersionsInStore } from '../core/store';
 import {
-  LATEST_VERSION,
-  getPackageStoreDir,
-  getProjectPackageDir,
-} from '../constants';
-import {
-  parsePackageName,
-  readPackageManifest,
-  isValidProject,
-} from '../utils/package';
-import { getLatestVersion } from '../utils/version';
-import {
-  packageExistsInStore,
-  packageVersionExistsInStore,
-} from '../core/store';
-import {
-  readLockfile,
   getLockfilePackageNames,
   getLockfilePackage,
   addPackageToLockfile,
@@ -25,25 +13,22 @@ import {
   copyPackageToProject,
   getStorePackageSignature,
 } from '../services/copy';
-import {
-  detectDependencyConflicts,
-  handleDependencyConflicts,
-} from '../services/dependency';
+import { checkAndHandleDependencyConflicts } from '../services/dependency';
 import { replaceNestedPackages } from '../services/nested';
+import { getRuntime } from '../core/runtime';
 import logger from '../utils/logger';
+import { t } from '../utils/i18n';
 
 /**
  * 执行 update 命令
  * 根据 nlm-lock.json 更新依赖
  */
-export const update = async (options: UpdateOptions): Promise<void> => {
-  const { workingDir, packageName, force = false } = options;
+export const update = async (packageName?: string): Promise<void> => {
+  const { workingDir, force } = getRuntime();
 
   // 检查当前目录是否是有效项目
   if (!isValidProject(workingDir)) {
-    throw new NlmError(
-      '当前目录不是有效的项目（缺少 package.json 或 node_modules）',
-    );
+    throw new NlmError(t('errInvalidProject'));
   }
 
   // 获取要更新的包列表
@@ -55,7 +40,10 @@ export const update = async (options: UpdateOptions): Promise<void> => {
 
     if (!isPackageInLockfile(workingDir, name)) {
       throw new NlmError(
-        `${logger.pkg(name)} 未安装，请先使用 ${logger.cmd('nlm install')} 安装`,
+        t('updateNotInstalled', {
+          pkg: logger.pkg(name),
+          cmd: logger.cmd('nlm install'),
+        }),
       );
     }
 
@@ -66,11 +54,10 @@ export const update = async (options: UpdateOptions): Promise<void> => {
   }
 
   if (packagesToUpdate.length === 0) {
-    logger.info('没有已安装的 nlm 包');
+    logger.info(t('updateNoPackages'));
     return;
   }
 
-  const projectPkg = readPackageManifest(workingDir);
   let updatedCount = 0;
   let skippedCount = 0;
 
@@ -78,110 +65,94 @@ export const update = async (options: UpdateOptions): Promise<void> => {
     const name = packagesToUpdate[i];
     const startTime = Date.now();
     logger.spin(
-      `更新包 (${i + 1}/${packagesToUpdate.length}): ${logger.pkg(name)}...`,
+      t('updatePackage', {
+        current: i + 1,
+        total: packagesToUpdate.length,
+        pkg: logger.pkg(name),
+      }),
     );
 
     try {
-      const result = await updateSinglePackage(
-        name,
-        workingDir,
-        force,
-        projectPkg,
-      );
+      const result = await updateSinglePackage(name);
       if (result) {
         logger.spinSuccess(
-          `已更新 ${logger.pkg(name)} ${logger.duration(startTime)}`,
+          t('updateUpdated', {
+            pkg: `${logger.pkg(name)} ${logger.duration(startTime)}`,
+          }),
         );
         updatedCount++;
       } else {
         logger.spinInfo(
-          `${logger.pkg(name)} 已是最新，跳过 ${logger.duration(startTime)}`,
+          t('updateUpToDate', {
+            pkg: `${logger.pkg(name)} ${logger.duration(startTime)}`,
+          }),
         );
         skippedCount++;
       }
     } catch (error) {
       logger.spinFail(
-        `更新 ${logger.pkg(name)} 失败: ${error} ${logger.duration(startTime)}`,
+        t('updateFailed', { pkg: logger.pkg(name), error: String(error) }),
       );
     }
   }
 
-  logger.success(`更新完成: ${updatedCount} 个更新, ${skippedCount} 个跳过`);
+  logger.success(
+    t('updateComplete', { updated: updatedCount, skipped: skippedCount }),
+  );
 };
 
 /**
  * 更新单个包
  */
-const updateSinglePackage = async (
-  name: string,
-  workingDir: string,
-  force: boolean,
-  projectPkg: ReturnType<typeof readPackageManifest>,
-): Promise<boolean> => {
+const updateSinglePackage = async (name: string): Promise<boolean> => {
+  const { workingDir, force } = getRuntime();
   // 检查包是否存在于 store
   if (!packageExistsInStore(name)) {
-    logger.warn(`${logger.pkg(name)} 不存在于 store，跳过`);
+    logger.warn(t('updateNotInStore', { pkg: logger.pkg(name) }));
     return false;
   }
 
   // 获取 lockfile 中的版本信息
   const lockEntry = getLockfilePackage(workingDir, name);
   if (!lockEntry) {
-    logger.warn(`${logger.pkg(name)} 不在 lockfile 中，跳过`);
+    logger.warn(t('updateNotInLockfile', { pkg: logger.pkg(name) }));
     return false;
   }
 
   // 确定要安装的版本
-  let versionToInstall = lockEntry.version;
+  const availableVersions = getPackageVersionsInStore(name);
+  const resolved = resolveVersion(lockEntry.version, availableVersions);
 
-  if (versionToInstall === LATEST_VERSION) {
-    const packageDir = getPackageStoreDir(name);
-    const latestVersion = getLatestVersion(packageDir);
-
-    if (!latestVersion) {
-      logger.warn(`${logger.pkg(name)} 没有可用版本，跳过`);
-      return false;
-    }
-
-    versionToInstall = latestVersion;
-  }
-
-  // 检查版本是否存在
-  if (!packageVersionExistsInStore(name, versionToInstall)) {
-    logger.warn(`${logger.version(versionToInstall)} 不存在，跳过`);
+  if (!resolved) {
+    logger.warn(
+      t('updateNoMatchVersion', {
+        pkg: logger.pkg(name),
+        version: logger.version(lockEntry.version),
+      }),
+    );
     return false;
   }
+
+  const versionToInstall = resolved.version;
 
   // 检查 signature 是否相同
   const storeSignature = getStorePackageSignature(name, versionToInstall);
 
   if (!force && lockEntry.signature === storeSignature) {
-    logger.debug(`${logger.pkg(name)} 已是最新，跳过`);
+    logger.debug(t('updateUpToDate', { pkg: logger.pkg(name) }));
     return false;
   }
 
-  logger.info(`更新 ${logger.pkg(name, versionToInstall)}`);
+  logger.info(t('updateSingle', { pkg: logger.pkg(name, versionToInstall) }));
 
   // 复制包到 .nlm 并在 node_modules 中创建软链接
-  const copyResult = await copyPackageToProject(
-    name,
-    versionToInstall,
-    workingDir,
-    force,
-  );
+  const copyResult = await copyPackageToProject(name, versionToInstall);
 
   // 获取 .nlm 中的实际包路径
   const nlmPackageDir = getProjectPackageDir(workingDir, name);
 
   // 处理依赖冲突
-  const nlmPkg = readPackageManifest(nlmPackageDir);
-
-  if (projectPkg && nlmPkg) {
-    const conflicts = detectDependencyConflicts(nlmPkg, projectPkg);
-    if (conflicts.length > 0) {
-      await handleDependencyConflicts(name, conflicts, workingDir);
-    }
-  }
+  await checkAndHandleDependencyConflicts(name, nlmPackageDir, workingDir);
 
   // 替换嵌套的同名包（使用软链接）
   await replaceNestedPackages(workingDir, name, nlmPackageDir);

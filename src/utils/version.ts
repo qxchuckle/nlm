@@ -1,6 +1,5 @@
 import semver from 'semver';
-import { join } from 'path';
-import { readdirSync, statSync } from './file';
+import { readdirSync } from './file';
 
 /**
  * 比较两个版本号
@@ -56,6 +55,27 @@ export const isSameMajorVersion = (a: string, b: string): boolean => {
 };
 
 /**
+ * 检查两个版本范围是否兼容（有交集）
+ * 用于判断项目中的依赖版本是否满足 nlm 包的依赖要求
+ *
+ * @param required nlm 包要求的版本范围（如 ^17.0.0）
+ * @param installed 项目中声明的版本范围（如 ^17.0.2）
+ * @returns 是否兼容
+ */
+export const areVersionRangesCompatible = (
+  required: string,
+  installed: string,
+): boolean => {
+  try {
+    // 使用 semver.intersects 检查两个范围是否有交集
+    return semver.intersects(required, installed);
+  } catch {
+    // 如果解析失败，回退到主版本号比较
+    return isSameMajorVersion(required, installed);
+  }
+};
+
+/**
  * 检查版本是否有效
  */
 export const isValidVersion = (version: string): boolean => {
@@ -71,7 +91,7 @@ export const cleanVersion = (version: string): string | null => {
 
 /**
  * 从目录中获取最新版本
- * 按照创建时间排序，返回最新的版本目录名
+ * 按照版本号排序，返回最新的版本目录名
  */
 export const getLatestVersion = (packageDir: string): string => {
   const versions = readdirSync(packageDir);
@@ -79,20 +99,12 @@ export const getLatestVersion = (packageDir: string): string => {
     return '';
   }
 
-  // 按创建时间排序，获取最新版本
-  const versionWithTime = versions
-    .map((version) => {
-      const versionPath = join(packageDir, version);
-      const stats = statSync(versionPath);
-      return {
-        version,
-        ctime: stats?.ctime.getTime() || 0,
-      };
-    })
-    .filter((item) => item.ctime > 0)
-    .sort((a, b) => b.ctime - a.ctime);
+  // 按版本号降序排序，获取最新版本
+  const sortedVersions = versions
+    .filter((v) => isValidVersion(v))
+    .sort((a, b) => compareVersions(b, a));
 
-  return versionWithTime[0]?.version || '';
+  return sortedVersions[0] || '';
 };
 
 /**
@@ -117,4 +129,54 @@ export const findBestMatchVersion = (
     .sort((a, b) => compareVersions(b, a));
 
   return matching[0] || null;
+};
+
+/**
+ * 版本解析结果
+ */
+export interface ResolveVersionResult {
+  /** 实际要安装的版本 */
+  version: string;
+  /** 版本类型: latest-最新版, exact-精确版本, range-版本范围 */
+  type: 'latest' | 'exact' | 'range';
+}
+
+/**
+ * 解析并确定要安装的版本
+ * 支持 latest、精确版本、版本范围（^1.0.0, ~1.0.0, >=1.0.0 等）
+ *
+ * @param requestedVersion 请求的版本（可以是 latest、精确版本或版本范围）
+ * @param availableVersions 可用的版本列表
+ * @returns 解析结果，包含实际版本和版本类型；如果没有匹配版本则返回 null
+ */
+export const resolveVersion = (
+  requestedVersion: string | undefined,
+  availableVersions: string[],
+): ResolveVersionResult | null => {
+  const version = requestedVersion || 'latest';
+
+  // latest: 返回最新版本
+  if (version === 'latest') {
+    const latestVersion = findBestMatchVersion(availableVersions, 'latest');
+    if (!latestVersion) {
+      return null;
+    }
+    return { version: latestVersion, type: 'latest' };
+  }
+
+  // 精确版本: 检查是否存在
+  if (isValidVersion(version)) {
+    const exists = availableVersions.includes(version);
+    if (!exists) {
+      return null;
+    }
+    return { version, type: 'exact' };
+  }
+
+  // 版本范围: 查找满足范围的最佳版本
+  const matchedVersion = findBestMatchVersion(availableVersions, version);
+  if (!matchedVersion) {
+    return null;
+  }
+  return { version: matchedVersion, type: 'range' };
 };

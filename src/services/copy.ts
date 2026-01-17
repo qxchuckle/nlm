@@ -9,7 +9,9 @@ import {
 } from '../core/hash';
 import { getPackFiles, readPackageManifest } from '../utils/package';
 import { ensureDirSync, removeSync, pathExistsSync } from '../utils/file';
+import { getRuntime } from '../core/runtime';
 import logger from '../utils/logger';
+import { ensureGitignoreHasNlm } from '@/utils/gitignore';
 
 /**
  * 复制单个文件
@@ -21,13 +23,10 @@ const copyFile = async (src: string, dest: string): Promise<void> => {
 
 /**
  * 复制包到全局 store
- * @param workingDir 包的工作目录
- * @param force 是否强制复制（跳过 hash 检查）
+ * 从 runtime 读取 workingDir 和 force 配置
  */
-export const copyPackageToStore = async (
-  workingDir: string,
-  force: boolean = false,
-): Promise<CopyResult> => {
+export const copyPackageToStore = async (): Promise<CopyResult> => {
+  const { workingDir, force } = getRuntime();
   const pkg = readPackageManifest(workingDir);
 
   if (!pkg) {
@@ -85,22 +84,23 @@ export const copyPackageToStore = async (
 
 /**
  * 从 store 复制包到项目的 .nlm 并在 node_modules 中创建软链接
+ * 从 runtime 读取 workingDir 和 force 配置
  * @param packageName 包名
  * @param version 版本
- * @param targetDir 目标项目目录
- * @param force 是否强制复制
  */
 export const copyPackageToProject = async (
   packageName: string,
   version: string,
-  targetDir: string,
-  force: boolean = false,
 ): Promise<CopyResult> => {
+  const { workingDir: targetDir, force } = getRuntime();
   const storeDir = getPackageStoreDir(packageName, version);
 
   if (!pathExistsSync(storeDir)) {
     throw new Error(`${packageName}@${version} 不存在于 store`);
   }
+
+  // 确保 .gitignore 中包含 .nlm
+  ensureGitignoreHasNlm(targetDir);
 
   // 项目 .nlm 中的包目录
   const nlmPackageDir = getProjectPackageDir(targetDir, packageName);
@@ -135,7 +135,7 @@ export const copyPackageToProject = async (
   await ensureSymlink(nlmPackageDir, nodeModulesDir);
 
   logger.success(
-    `已安装 ${logger.pkg(packageName, version)} -> ${logger.path(nlmPackageDir)}`,
+    `已安装 ${logger.pkg(packageName, version)} -> ${logger.path(targetDir)}`,
   );
 
   return {

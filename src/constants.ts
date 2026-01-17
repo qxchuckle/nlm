@@ -65,10 +65,22 @@ export const SIGNATURE_FILE_NAME = 'nlm.sig';
 export const LATEST_VERSION = 'latest';
 
 /**
+ * 全局配置文件名
+ */
+export const GLOBAL_CONFIG_FILE_NAME = 'nlm.config.json';
+
+/**
  * 获取全局 store 配置文件路径
  */
 export const getStoreConfigPath = (): string => {
   return join(getStoreDir(), STORE_CONFIG_FILE);
+};
+
+/**
+ * 获取全局 nlm 配置文件路径
+ */
+export const getGlobalConfigPath = (): string => {
+  return join(getStoreDir(), GLOBAL_CONFIG_FILE_NAME);
 };
 
 /**

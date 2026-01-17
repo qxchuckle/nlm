@@ -2,7 +2,7 @@ import { spawn, execSync } from 'child_process';
 import { join } from 'path';
 import { DependencyConflict, Dependencies, PackageManifest } from '../types';
 import { readPackageManifest } from '../utils/package';
-import { isSameMajorVersion } from '../utils/version';
+import { areVersionRangesCompatible, satisfiesVersion } from '../utils/version';
 import { getConfiguredPackageManager } from '../core/config';
 import { ensureDirSync, pathExistsSync } from '../utils/file';
 import { getProjectNlmDir } from '../constants';
@@ -11,6 +11,7 @@ import logger from '../utils/logger';
 /**
  * 检测依赖冲突
  * 比较 nlm 包的依赖和项目的依赖，找出版本不兼容的依赖
+ * 使用 npm semver 规则判断版本范围是否兼容
  */
 export const detectDependencyConflicts = (
   nlmPkg: PackageManifest,
@@ -36,8 +37,8 @@ export const detectDependencyConflicts = (
       continue;
     }
 
-    // 检查主版本号是否相同
-    if (!isSameMajorVersion(requiredVersion, installedVersion)) {
+    // 检查版本范围是否兼容（有交集）
+    if (!areVersionRangesCompatible(requiredVersion, installedVersion)) {
       conflicts.push({
         name,
         requiredVersion,
@@ -52,6 +53,7 @@ export const detectDependencyConflicts = (
 /**
  * 处理依赖冲突
  * 在 .nlm/包名/node_modules 中安装冲突版本的依赖
+ * 会先检查已安装的版本是否满足要求，避免重复安装
  */
 export const handleDependencyConflicts = async (
   packageName: string,
@@ -62,39 +64,74 @@ export const handleDependencyConflicts = async (
     return;
   }
 
-  logger.warn(`检测到 ${conflicts.length} 个依赖冲突:`);
+  // nlm 包目录
+  const nlmPkgDir = join(getProjectNlmDir(workingDir), packageName);
+  // node_modules 目录（用于检查已安装的依赖）
+  const nodeModulesDir = join(nlmPkgDir, 'node_modules');
+
+  // 过滤出真正需要安装的依赖（已安装的版本不满足要求）
+  const needInstall = filterConflictsNeedInstall(conflicts, nodeModulesDir);
+
+  logger.warn(
+    `检测到 ${conflicts.length} 依赖冲突，还需要安装 ${needInstall.length} 个`,
+  );
   conflicts.forEach((conflict) => {
+    const isNeedInstall = needInstall.find((i) => i.name === conflict.name);
     logger.log(
-      `  - ${logger.pkg(conflict.name)}: ` +
+      `  - ${logger.pkg(conflict.name)} ${isNeedInstall ? '[需要安装]' : '[已安装]'} ` +
         `需要 ${logger.version(conflict.requiredVersion)}, ` +
-        `项目中是 ${logger.version(conflict.installedVersion)}`,
+        `项目中 ${logger.version(conflict.installedVersion)}`,
     );
   });
 
-  // 创建冲突依赖安装目录
-  const conflictDir = join(
-    getProjectNlmDir(workingDir),
-    packageName,
-    'node_modules',
-  );
-  ensureDirSync(conflictDir);
+  ensureDirSync(nlmPkgDir);
 
   // 获取配置的包管理器
   const pm = getConfiguredPackageManager(workingDir);
 
   // 收集所有需要安装的依赖
-  const depSpecs = conflicts.map(
+  const depSpecs = needInstall.map(
     (conflict) => `${conflict.name}@${conflict.requiredVersion}`,
   );
 
-  logger.info(`安装冲突依赖: ${depSpecs.join(', ')}`);
-
   try {
-    await runInstallCommand(pm, depSpecs, conflictDir);
+    await runInstallCommand(pm, depSpecs, nlmPkgDir);
   } catch (error) {
     logger.error(`安装冲突依赖失败`);
     throw error;
   }
+};
+
+/**
+ * 过滤出真正需要安装的冲突依赖
+ * 检查 nlmPackageDir/node_modules 中已安装的版本是否满足要求
+ */
+const filterConflictsNeedInstall = (
+  conflicts: DependencyConflict[],
+  conflictDir: string,
+): DependencyConflict[] => {
+  return conflicts.filter((conflict) => {
+    const installedPkgPath = join(conflictDir, conflict.name);
+
+    // 如果目录不存在，需要安装
+    if (!pathExistsSync(installedPkgPath)) {
+      return true;
+    }
+
+    // 读取已安装的 package.json
+    const installedPkg = readPackageManifest(installedPkgPath);
+    if (!installedPkg || !installedPkg.version) {
+      return true;
+    }
+
+    // 检查已安装的版本是否满足 nlm 包要求的版本范围
+    const isCompatible = satisfiesVersion(
+      installedPkg.version,
+      conflict.requiredVersion,
+    );
+
+    return !isCompatible;
+  });
 };
 
 /**
@@ -105,6 +142,9 @@ const runInstallCommand = (
   packageSpecs: string[],
   cwd: string,
 ): Promise<void> => {
+  if (packageSpecs.length === 0) {
+    return Promise.resolve();
+  }
   const { cmd, args } = getInstallCommand(pm, packageSpecs);
   const command = `${cmd} ${args.join(' ')}`;
   logger.debug(`执行安装命令: ${logger.cmd(command)}`);
@@ -147,6 +187,38 @@ const getInstallCommand = (
     cmd: pm,
     args: ['install', ...packageSpecs, '--legacy-peer-deps'],
   };
+};
+
+/**
+ * 检查并处理依赖冲突
+ * 通用函数，用于 install 和 update 命令
+ *
+ * @param packageName nlm 包名
+ * @param nlmPackageDir nlm 包在 .nlm 中的路径
+ * @param workingDir 项目工作目录
+ * @param projectPkg 项目的 package.json（可选，如果不传则自动读取）
+ * @returns 是否存在冲突
+ */
+export const checkAndHandleDependencyConflicts = async (
+  packageName: string,
+  nlmPackageDir: string,
+  workingDir: string,
+  projectPkg?: PackageManifest | null,
+): Promise<boolean> => {
+  const project = projectPkg ?? readPackageManifest(workingDir);
+  const nlmPkg = readPackageManifest(nlmPackageDir);
+
+  if (!project || !nlmPkg) {
+    return false;
+  }
+
+  const conflicts = detectDependencyConflicts(nlmPkg, project);
+  if (conflicts.length === 0) {
+    return false;
+  }
+
+  await handleDependencyConflicts(packageName, conflicts, workingDir);
+  return true;
 };
 
 /**

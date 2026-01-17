@@ -212,3 +212,10 @@ export const createSymlinkSync = (target: string, path: string): void => {
   fs.ensureDirSync(dirname(path));
   fs.ensureSymlinkSync(target, path, 'junction');
 };
+
+/**
+ * 追加内容到文件（如果文件不存在会创建）
+ */
+export const appendFileSync = (path: string, content: string): void => {
+  fs.appendFileSync(path, content, 'utf-8');
+};

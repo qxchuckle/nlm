@@ -1,6 +1,7 @@
 import chalk from 'chalk';
 import ora, { Ora } from 'ora';
 import { format } from 'light-date';
+import { getRuntimeValue } from '../core/runtime';
 
 // 当前活跃的 spinner
 let activeSpinner: Ora | null = null;
@@ -65,7 +66,7 @@ export const logger = {
    * 调试信息
    */
   debug: (message: string, ...args: unknown[]): void => {
-    if (process.env.DEBUG) {
+    if (getRuntimeValue('debug')) {
       safeLog(console.log, chalk.gray('debug'), message, ...args);
     }
   },

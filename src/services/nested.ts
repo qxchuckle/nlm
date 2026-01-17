@@ -80,11 +80,16 @@ export const replaceNestedPackages = async (
   const topLevelPath = join(nodeModulesDir, packageName);
   const nestedPaths = allPaths.filter((p) => p !== topLevelPath);
 
+  logger.debug(`嵌套包路径: ${nestedPaths.join('\n')}`);
+
   if (nestedPaths.length === 0) {
+    logger.info(`没有间接依赖 ${logger.pkg(packageName)} 的包`);
     return 0;
   }
 
-  logger.info(`发现 ${nestedPaths.length} 个嵌套的 ${logger.pkg(packageName)}`);
+  logger.info(
+    `发现 ${nestedPaths.length} 个间接依赖 ${logger.pkg(packageName)} 的包`,
+  );
 
   // 替换所有嵌套包（使用软链接）
   let replaced = 0;

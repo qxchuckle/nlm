@@ -99,60 +99,6 @@ export interface NlmConfig {
 }
 
 /**
- * push 命令选项
- */
-export interface PushOptions {
-  /** 工作目录 */
-  workingDir: string;
-  /** 强制推送，跳过 hash 检查 */
-  force?: boolean;
-}
-
-/**
- * install 命令选项
- */
-export interface InstallOptions {
-  /** 工作目录 */
-  workingDir: string;
-  /** 要安装的包名（可带版本号） */
-  packageName?: string;
-  /** 强制安装，跳过 hash 检查 */
-  force?: boolean;
-}
-
-/**
- * update 命令选项
- */
-export interface UpdateOptions {
-  /** 工作目录 */
-  workingDir: string;
-  /** 要更新的包名 */
-  packageName?: string;
-  /** 强制更新，跳过 hash 检查 */
-  force?: boolean;
-}
-
-/**
- * uninstall 命令选项
- */
-export interface UninstallOptions {
-  /** 工作目录 */
-  workingDir: string;
-  /** 要卸载的包名 */
-  packageName: string;
-}
-
-/**
- * ls 命令选项
- */
-export interface ListOptions {
-  /** 工作目录 */
-  workingDir: string;
-  /** 是否列出全局 store */
-  store?: boolean;
-}
-
-/**
  * 依赖冲突信息
  */
 export interface DependencyConflict {
@@ -175,3 +121,6 @@ export interface CopyResult {
   /** 是否有变化（用于判断是否跳过） */
   changed: boolean;
 }
+
+// 重新导出运行时配置类型
+export type { RuntimeConfig } from '../core/runtime';

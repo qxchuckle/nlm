@@ -1,4 +1,4 @@
-import { PushOptions, NlmError } from '../types';
+import { NlmError } from '../types';
 import { readPackageManifest } from '../utils/package';
 import { copyPackageToStore, copyPackageToProject } from '../services/copy';
 import {
@@ -7,21 +7,21 @@ import {
   packageVersionExistsInStore,
 } from '../core/store';
 import { getLockfilePackage } from '../core/lockfile';
+import { getRuntime } from '../core/runtime';
 import logger from '../utils/logger';
+import { t } from '../utils/i18n';
 
 /**
  * 执行 push 命令
  * 将当前包推送到全局 store，并更新所有使用此包的项目
  */
-export const push = async (options: PushOptions): Promise<void> => {
-  const { workingDir, force = false } = options;
+export const push = async (): Promise<void> => {
+  const { workingDir, force } = getRuntime();
 
   // 读取当前包的 package.json
   const pkg = readPackageManifest(workingDir);
   if (!pkg) {
-    throw new NlmError(
-      '当前目录不是有效的 npm 包（缺少 package.json 或格式错误）',
-    );
+    throw new NlmError(t('errInvalidPackage'));
   }
 
   const { name, version } = pkg;
@@ -30,14 +30,16 @@ export const push = async (options: PushOptions): Promise<void> => {
   let copyResult;
   const pushStartTime = Date.now();
   try {
-    logger.spin(`推送 ${logger.pkg(name, version)} 到 store...`);
-    copyResult = await copyPackageToStore(workingDir, force);
+    logger.spin(t('pushToStore', { pkg: logger.pkg(name, version) }));
+    copyResult = await copyPackageToStore();
     logger.spinSuccess(
-      `已推送 ${logger.pkg(name, version)} 到 store ${logger.duration(pushStartTime)}`,
+      t('pushedToStore', {
+        pkg: `${logger.pkg(name, version)} ${logger.duration(pushStartTime)}`,
+      }),
     );
   } catch (error) {
-    logger.spinFail(`推送失败: ${error} ${logger.duration(pushStartTime)}`);
-    throw new NlmError(`推送失败: ${error}`);
+    logger.spinFail(t('pushFailed', { error: String(error) }));
+    throw new NlmError(t('pushFailed', { error: String(error) }));
   }
 
   // 更新 store 配置中的 target 路径
@@ -45,7 +47,7 @@ export const push = async (options: PushOptions): Promise<void> => {
 
   // 如果内容没有变化且不是强制模式，跳过更新项目
   if (!copyResult.changed && !force) {
-    logger.info('包内容未变化，跳过更新项目');
+    logger.info(t('pushNoChange'));
     return;
   }
 
@@ -53,7 +55,7 @@ export const push = async (options: PushOptions): Promise<void> => {
   const usages = getPackageUsages(name);
 
   if (usages.length === 0) {
-    logger.info('没有项目使用此包');
+    logger.info(t('pushNoUsage'));
     return;
   }
 
@@ -63,7 +65,11 @@ export const push = async (options: PushOptions): Promise<void> => {
     const projectPath = usages[i];
     const startTime = Date.now();
     logger.spin(
-      `更新项目 (${i + 1}/${usages.length}): ${logger.path(projectPath)}`,
+      t('pushUpdateProject', {
+        current: i + 1,
+        total: usages.length,
+        path: logger.path(projectPath),
+      }),
     );
 
     try {
@@ -72,7 +78,9 @@ export const push = async (options: PushOptions): Promise<void> => {
 
       if (!lockEntry) {
         logger.spinWarn(
-          `${logger.path(projectPath)} 未安装此包，跳过 ${logger.duration(startTime)}`,
+          t('pushProjectNotInstalled', {
+            path: `${logger.path(projectPath)} ${logger.duration(startTime)}`,
+          }),
         );
         continue;
       }
@@ -83,26 +91,33 @@ export const push = async (options: PushOptions): Promise<void> => {
       // 检查版本是否存在
       if (!packageVersionExistsInStore(name, installedVersion)) {
         logger.spinWarn(
-          `${logger.path(projectPath)} 依赖的版本 ${installedVersion} 不存在，跳过 ${logger.duration(startTime)}`,
+          t('pushVersionNotExist', {
+            path: logger.path(projectPath),
+            version: `${installedVersion} ${logger.duration(startTime)}`,
+          }),
         );
         continue;
       }
 
-      // 更新项目中的包
-      await copyPackageToProject(name, installedVersion, projectPath, force);
+      // 更新项目中的包（临时切换 workingDir）
+      const { updateRuntime } = await import('../core/runtime');
+      updateRuntime({ workingDir: projectPath });
+      await copyPackageToProject(name, installedVersion);
 
       logger.spinSuccess(
-        `已更新 ${logger.path(projectPath)} ${logger.duration(startTime)}`,
+        t('pushUpdatedProject', {
+          path: `${logger.path(projectPath)} ${logger.duration(startTime)}`,
+        }),
       );
       updatedCount++;
     } catch (error) {
       logger.spinFail(
-        `更新 ${projectPath} 失败: ${error} ${logger.duration(startTime)}`,
+        t('pushUpdateFailed', { path: projectPath, error: String(error) }),
       );
     }
   }
 
-  logger.success(`推送完成，已更新 ${updatedCount} 个项目`);
+  logger.success(t('pushComplete', { count: updatedCount }));
 };
 
 export default push;

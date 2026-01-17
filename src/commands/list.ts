@@ -1,46 +1,22 @@
-import Table from 'cli-table3';
 import chalk from 'chalk';
-import { ListOptions } from '../types';
 import { readLockfile, lockfileExists } from '../core/lockfile';
 import {
   getAllPackagesInStore,
   getPackageVersionsInStore,
   readStoreConfig,
 } from '../core/store';
+import { readInstalledPackageManifest } from '../utils/package';
+import { getRuntime } from '../core/runtime';
 import logger from '../utils/logger';
-
-// 表格样式配置
-const tableStyle = {
-  chars: {
-    top: '─',
-    'top-mid': '┬',
-    'top-left': '┌',
-    'top-right': '┐',
-    bottom: '─',
-    'bottom-mid': '┴',
-    'bottom-left': '└',
-    'bottom-right': '┘',
-    left: '│',
-    'left-mid': '├',
-    mid: '─',
-    'mid-mid': '┼',
-    right: '│',
-    'right-mid': '┤',
-    middle: '│',
-  },
-  style: {
-    head: ['cyan'],
-    border: ['gray'],
-  },
-};
+import { t } from '../utils/i18n';
 
 /**
  * 执行 ls 命令
  */
-export const list = async (options: ListOptions): Promise<void> => {
-  const { workingDir, store = false } = options;
+export const list = async (showStore: boolean): Promise<void> => {
+  const { workingDir } = getRuntime();
 
-  if (store) {
+  if (showStore) {
     await listStore();
   } else {
     await listProject(workingDir);
@@ -52,7 +28,7 @@ export const list = async (options: ListOptions): Promise<void> => {
  */
 const listProject = async (workingDir: string): Promise<void> => {
   if (!lockfileExists(workingDir)) {
-    logger.info('当前项目没有安装任何 nlm 包');
+    logger.info(t('listNoPackages'));
     return;
   }
 
@@ -60,17 +36,14 @@ const listProject = async (workingDir: string): Promise<void> => {
   const packages = Object.entries(lockfile.packages);
 
   if (packages.length === 0) {
-    logger.info('当前项目没有安装任何 nlm 包');
+    logger.info(t('listNoPackages'));
     return;
   }
 
-  const table = new Table({
-    head: ['包名', '版本', '签名'],
-    ...tableStyle,
-    colWidths: [40, 12, 20],
-    wordWrap: true,
-    wrapOnWordBoundary: false,
-  });
+  const storeConfig = readStoreConfig();
+
+  logger.log(t('listInstalled'));
+  console.log();
 
   for (const [name, entry] of packages) {
     const versionDisplay =
@@ -78,16 +51,21 @@ const listProject = async (workingDir: string): Promise<void> => {
         ? chalk.yellow('latest')
         : chalk.green(entry.version);
 
-    table.push([
-      chalk.cyan(name),
-      versionDisplay,
-      chalk.gray(entry.signature.substring(0, 12) + '...'),
-    ]);
+    // 从项目 .nlm/<packageName>/package.json 读取实际安装的版本
+    const installedPkg = readInstalledPackageManifest(workingDir, name);
+    const actualVersion = installedPkg?.version;
+
+    console.log(logger.pkg(name));
+    console.log(
+      `  ${versionDisplay}${actualVersion && actualVersion !== entry.version ? ` ${chalk.gray('→')} ${chalk.green(actualVersion)}` : ''}  ${chalk.gray(entry.signature)}`,
+    );
+    console.log(
+      `  ${chalk.gray(t('listSourcePath'))} ${logger.path(storeConfig[name]?.target ?? '-')}`,
+    );
   }
 
-  logger.log('已安装的 nlm 包:');
-  console.log(table.toString());
-  logger.log(`共 ${chalk.bold(packages.length)} 个包`);
+  console.log();
+  logger.log(t('listTotal', { count: packages.length }));
 };
 
 /**
@@ -97,37 +75,42 @@ const listStore = async (): Promise<void> => {
   const packages = getAllPackagesInStore();
 
   if (packages.length === 0) {
-    logger.info('全局 store 中没有任何包');
+    logger.info(t('listStoreEmpty'));
     return;
   }
 
   const storeConfig = readStoreConfig();
 
-  const table = new Table({
-    head: ['包名', '版本', '源路径', '使用项目'],
-    ...tableStyle,
-    colWidths: [30, 12, 50, 15],
-    wordWrap: true,
-    wrapOnWordBoundary: false,
-  });
+  logger.log(t('listStoreTitle'));
+  console.log();
 
   for (const name of packages) {
     const versions = getPackageVersionsInStore(name);
     const entry = storeConfig[name];
 
-    const versionsStr = versions.map((v) => chalk.green(v)).join('\n');
-    const targetPath = entry?.target ? chalk.blue(entry.target) : '-';
-    const usedByCount =
-      entry?.usedBy && entry.usedBy.length > 0
-        ? chalk.yellow(`${entry.usedBy.length} 个项目`)
-        : chalk.gray('-');
+    console.log(logger.pkg(name));
+    console.log(`  ${logger.version(versions.join(' '))}`);
 
-    table.push([chalk.cyan(name), versionsStr, targetPath, usedByCount]);
+    // 源路径信息
+    console.log(
+      `  ${chalk.gray(t('listSourcePath'))} ${logger.path(entry?.target ?? '-')}`,
+    );
+
+    // 使用项目列表
+    if (entry?.usedBy && entry.usedBy.length > 0) {
+      console.log(
+        `  ${chalk.gray(t('listUsedBy'))} ${chalk.yellow(t('listUsedByCount', { count: entry.usedBy.length }))}`,
+      );
+      for (const project of entry.usedBy) {
+        console.log(`    ${logger.path(project)}`);
+      }
+    } else {
+      console.log(`  ${chalk.gray(t('listUsedBy'))} ${chalk.gray('-')}`);
+    }
   }
 
-  logger.log('全局 store 中的包:');
-  console.log(table.toString());
-  logger.log(`共 ${chalk.bold(packages.length)} 个包`);
+  console.log();
+  logger.log(t('listTotal', { count: packages.length }));
 };
 
 export default list;

@@ -1,5 +1,5 @@
 import { join } from 'path';
-import { UninstallOptions, NlmError } from '../types';
+import { NlmError } from '../types';
 import { PROJECT_NLM_DIR, getProjectPackageDir } from '../constants';
 import {
   parsePackageName,
@@ -14,33 +14,35 @@ import {
   isPackageInLockfile,
   getLockfilePackageNames,
 } from '../core/lockfile';
+import { getRuntime } from '../core/runtime';
 import logger from '../utils/logger';
+import { t } from '../utils/i18n';
 
 /**
  * 执行 uninstall 命令
  */
-export const uninstall = async (options: UninstallOptions): Promise<void> => {
-  const { workingDir, packageName } = options;
+export const uninstall = async (packageName: string): Promise<void> => {
+  const { workingDir } = getRuntime();
 
   // 检查当前目录是否是有效项目
   if (!isValidProject(workingDir)) {
-    throw new NlmError('当前目录不是有效的项目');
+    throw new NlmError(t('errInvalidProjectSimple'));
   }
 
   // 解析包名
   const { name } = parsePackageName(packageName);
 
   if (!name) {
-    throw new NlmError(`无效的包名: ${packageName}`);
+    throw new NlmError(t('errInvalidPackageName', { name: packageName }));
   }
 
   // 检查包是否已安装
   if (!isPackageInLockfile(workingDir, name)) {
-    throw new NlmError(`${logger.pkg(name)} 未通过 nlm 安装`);
+    throw new NlmError(t('uninstallNotInstalled', { pkg: logger.pkg(name) }));
   }
 
   const startTime = Date.now();
-  logger.spin(`卸载 ${logger.pkg(name)}...`);
+  logger.spin(t('uninstallPackage', { pkg: logger.pkg(name) }));
 
   // 从 node_modules 中移除软链接
   const nodeModulesPath = join(workingDir, 'node_modules', name);
@@ -100,11 +102,11 @@ export const uninstall = async (options: UninstallOptions): Promise<void> => {
   }
 
   logger.spinSuccess(
-    `卸载完成 ${logger.pkg(name)} ${logger.duration(startTime)}`,
+    t('uninstallComplete', {
+      pkg: `${logger.pkg(name)} ${logger.duration(startTime)}`,
+    }),
   );
-  logger.warn(
-    `注意：请手动重新安装实际依赖（运行 npm install / yarn / pnpm install）`,
-  );
+  logger.warn(t('uninstallNote'));
 };
 
 export default uninstall;

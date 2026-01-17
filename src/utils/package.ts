@@ -1,6 +1,7 @@
 import { join, resolve } from 'path';
 import { PackageManifest, PackageName } from '../types';
 import { readJsonSync, writeJsonSync, pathExistsSync } from './file';
+import { getProjectPackageDir } from '../constants';
 import packlist from 'npm-packlist';
 import logger from './logger';
 
@@ -189,4 +190,29 @@ export const getPackFiles = async (workingDir: string): Promise<string[]> => {
   logger.debug(`packlist ${logger.duration(startTime)}`);
 
   return files;
+};
+
+/**
+ * 读取项目中已安装的 nlm 包的 package.json
+ * @param workingDir 项目目录
+ * @param packageName 包名
+ * @returns package.json 内容，如果不存在则返回 null
+ */
+export const readInstalledPackageManifest = (
+  workingDir: string,
+  packageName: string,
+): PackageManifest | null => {
+  const pkgJsonPath = join(
+    getProjectPackageDir(workingDir, packageName),
+    'package.json',
+  );
+  try {
+    const pkg = readJsonSync<PackageManifest>(pkgJsonPath);
+    if (!pkg || !pkg.name || !pkg.version) {
+      return null;
+    }
+    return pkg;
+  } catch {
+    return null;
+  }
 };
