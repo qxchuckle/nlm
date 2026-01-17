@@ -90,5 +90,6 @@ export const en = {
   gitignoreNotExist:
     '.gitignore file does not exist, please manually add {entry} to .gitignore',
   gitignoreAdded: 'Automatically added {entry} to .gitignore',
-  gitignoreAddFailed: 'Failed to add {entry} to .gitignore, please add manually',
+  gitignoreAddFailed:
+    'Failed to add {entry} to .gitignore, please add manually',
 };
