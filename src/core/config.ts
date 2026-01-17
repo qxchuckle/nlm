@@ -114,9 +114,7 @@ export const readGlobalConfig = (): NlmConfig => {
   initGlobalConfigIfNotExists();
   const globalConfigPath = getGlobalConfigPath();
   const config = readJsonSync<NlmConfig>(globalConfigPath);
-  logger.debug(`读取全局配置: ${logger.path(globalConfigPath)}`);
-  logger.debug(`读取全局配置内容: ${JSON.stringify(config)}`);
-  return { ...defaultConfig, ...config };
+  return { ...config };
 };
 
 /**

@@ -16,6 +16,7 @@ export const zh = {
   pushProjectNotInstalled: '{path} 未安装此包，跳过',
   pushVersionNotExist: '{path} 依赖的版本 {version} 不存在，跳过',
   pushUpdatedProject: '已更新 {path}',
+  pushProjectUpToDate: '{path} 已是最新，跳过',
   pushUpdateFailed: '更新 {path} 失败: {error}',
   pushComplete: '推送完成，已更新 {count} 个项目',
 

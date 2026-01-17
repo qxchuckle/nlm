@@ -1,13 +1,10 @@
 import { NlmError } from '../types';
 import { readPackageManifest } from '../utils/package';
-import { copyPackageToStore, copyPackageToProject } from '../services/copy';
-import {
-  setPackageTarget,
-  getPackageUsages,
-  packageVersionExistsInStore,
-} from '../core/store';
+import { copyPackageToStore } from '../services/copy';
+import { setPackageTarget, getPackageUsages } from '../core/store';
 import { getLockfilePackage } from '../core/lockfile';
-import { getRuntime } from '../core/runtime';
+import { getRuntime, updateRuntime } from '../core/runtime';
+import { updateSinglePackage } from './update';
 import logger from '../utils/logger';
 import { t } from '../utils/i18n';
 
@@ -46,10 +43,10 @@ export const push = async (): Promise<void> => {
   setPackageTarget(name, workingDir);
 
   // 如果内容没有变化且不是强制模式，跳过更新项目
-  if (!copyResult.changed && !force) {
-    logger.info(t('pushNoChange'));
-    return;
-  }
+  // if (!copyResult.changed && !force) {
+  //   logger.info(t('pushNoChange'));
+  //   return;
+  // }
 
   // 获取所有使用此包的项目并更新
   const usages = getPackageUsages(name);
@@ -60,6 +57,9 @@ export const push = async (): Promise<void> => {
   }
 
   let updatedCount = 0;
+
+  // 记录原 workingDir
+  const originalWorkingDir = workingDir;
 
   for (let i = 0; i < usages.length; i++) {
     const projectPath = usages[i];
@@ -85,31 +85,25 @@ export const push = async (): Promise<void> => {
         continue;
       }
 
-      const installedVersion =
-        lockEntry.version === 'latest' ? version : lockEntry.version;
+      // 更新项目中的包（临时切换 workingDir）
+      updateRuntime({ workingDir: projectPath });
+      const updated = await updateSinglePackage(name);
+      updateRuntime({ workingDir: originalWorkingDir });
 
-      // 检查版本是否存在
-      if (!packageVersionExistsInStore(name, installedVersion)) {
-        logger.spinWarn(
-          t('pushVersionNotExist', {
-            path: logger.path(projectPath),
-            version: `${installedVersion} ${logger.duration(startTime)}`,
+      if (updated) {
+        logger.spinSuccess(
+          t('pushUpdatedProject', {
+            path: `${logger.path(projectPath)} ${logger.duration(startTime)}`,
           }),
         );
-        continue;
+        updatedCount++;
+      } else {
+        logger.spinInfo(
+          t('pushProjectUpToDate', {
+            path: `${logger.path(projectPath)} ${logger.duration(startTime)}`,
+          }),
+        );
       }
-
-      // 更新项目中的包（临时切换 workingDir）
-      const { updateRuntime } = await import('../core/runtime');
-      updateRuntime({ workingDir: projectPath });
-      await copyPackageToProject(name, installedVersion);
-
-      logger.spinSuccess(
-        t('pushUpdatedProject', {
-          path: `${logger.path(projectPath)} ${logger.duration(startTime)}`,
-        }),
-      );
-      updatedCount++;
     } catch (error) {
       logger.spinFail(
         t('pushUpdateFailed', { path: projectPath, error: String(error) }),

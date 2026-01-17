@@ -104,7 +104,7 @@ export const update = async (packageName?: string): Promise<void> => {
 /**
  * 更新单个包
  */
-const updateSinglePackage = async (name: string): Promise<boolean> => {
+export const updateSinglePackage = async (name: string): Promise<boolean> => {
   const { workingDir, force } = getRuntime();
   // 检查包是否存在于 store
   if (!packageExistsInStore(name)) {
@@ -136,12 +136,12 @@ const updateSinglePackage = async (name: string): Promise<boolean> => {
   const versionToInstall = resolved.version;
 
   // 检查 signature 是否相同
-  const storeSignature = getStorePackageSignature(name, versionToInstall);
+  // const storeSignature = getStorePackageSignature(name, versionToInstall);
 
-  if (!force && lockEntry.signature === storeSignature) {
-    logger.debug(t('updateUpToDate', { pkg: logger.pkg(name) }));
-    return false;
-  }
+  // if (!force && lockEntry.signature === storeSignature) {
+  //   logger.debug(t('updateUpToDate', { pkg: logger.pkg(name) }));
+  //   return false;
+  // }
 
   logger.info(t('updateSingle', { pkg: logger.pkg(name, versionToInstall) }));
 

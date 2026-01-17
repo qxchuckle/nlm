@@ -19,6 +19,7 @@ export const en = {
   pushVersionNotExist:
     '{path} depends on version {version} which does not exist, skipping',
   pushUpdatedProject: 'Updated {path}',
+  pushProjectUpToDate: '{path} is up to date, skipping',
   pushUpdateFailed: 'Failed to update {path}: {error}',
   pushComplete: 'Push complete, updated {count} projects',
 
