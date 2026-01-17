@@ -16,12 +16,14 @@
   "bin": {
     "nlm": "lib/cli.js"
   },
+  "files": [
+    "lib"
+  ],
   "scripts": {
     "build": "rollup -c rollup.config.mjs",
     "dev": "rollup -c rollup.config.mjs --watch",
     "start": "node lib/cli.js",
-    "clean": "rm -rf lib",
-    "prepublishOnly": "npm run clean && npm run build",
+    "prepublishOnly": "npm run build",
     "lint": "eslint --fix ./",
     "prepare": "husky"
   },
@@ -32,7 +34,11 @@
     "development",
     "linking"
   ],
-  "author": "",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/qxchuckle/npm-local-modules.git"
+  },
+  "author": "chuckle",
   "license": "MIT",
   "dependencies": {
     "@npmcli/arborist": "^9.1.9",
