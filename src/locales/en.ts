@@ -133,4 +133,26 @@ export const en = {
   searchUsedBy: 'Used by:',
   searchUsedByCount: '{count} projects',
   searchTotal: 'Total {count} packages',
+
+  // status command
+  cmdStatusDesc: 'Show nlm status of current project',
+  statusNoPackages: 'No nlm packages installed in current project',
+  statusTitle: 'nlm package status:',
+  statusOk: 'OK',
+  statusBroken: 'Link broken',
+  statusMissing: 'Not in store',
+  statusOutdated: 'Update available',
+  statusLocked: 'Locked:',
+  statusInstalled: 'Installed:',
+  statusLatest: 'Latest:',
+  statusSource: 'Source:',
+  statusSummary: 'Summary:',
+  statusTotal: 'Total {count}',
+  statusOkCount: '{count} OK',
+  statusBrokenCount: '{count} broken',
+  statusMissingCount: '{count} missing',
+  statusOutdatedCount: '{count} outdated',
+  statusFixBroken: 'Symlinks are broken, run {cmd} to fix',
+  statusFixMissing:
+    'Some packages are missing from store, run {cmd} in the package directory',
 };

@@ -126,6 +126,15 @@ nlm search <keyword>
 nlm s
 ```
 
+### status
+
+查看当前项目中所有 nlm 包的状态
+
+```bash
+nlm status
+nlm st
+```
+
 ### Common Options
 
 ```bash

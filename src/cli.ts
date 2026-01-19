@@ -9,6 +9,7 @@ import { uninstall } from './commands/uninstall';
 import { list } from './commands/list';
 import { config } from './commands/config';
 import { search } from './commands/search';
+import { status } from './commands/status';
 import { NlmError } from './types';
 import { initRuntime, updateRuntime, type Locale } from './core/runtime';
 import logger from './utils/logger';
@@ -186,6 +187,13 @@ const main = async () => {
     .alias('s')
     .description(t('cmdSearchDesc'))
     .action(wrapAction(async (keyword: string) => search(keyword)));
+
+  // status 命令
+  program
+    .command('status')
+    .alias('st')
+    .description(t('cmdStatusDesc'))
+    .action(wrapAction(async () => status()));
 
   // 处理未知命令
   program.on('command:*', (operands) => {
