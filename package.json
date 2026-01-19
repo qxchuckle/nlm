@@ -47,6 +47,7 @@
     "commander": "^11.1.0",
     "fs-extra": "^11.2.0",
     "ignore": "^7.0.5",
+    "inquirer-select-pro": "1.0.0-alpha.9",
     "light-date": "^1.2.0",
     "mri": "^1.2.0",
     "npm-packlist": "^10.0.3",

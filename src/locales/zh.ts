@@ -48,7 +48,7 @@ export const zh = {
   uninstallInstalling: '正在从 npm 安装 {pkg}...',
   uninstallInstallComplete: '已从远端安装 {pkg}',
   uninstallNote:
-    '注意：请手动重新安装实际依赖（运行 npm install / yarn / pnpm install）',
+    '注意：请手动重新安装实际依赖（卸载时 --install 参数自动安装）',
   uninstallSelectPackages: '选择要卸载的包',
   uninstallCancelled: '取消卸载',
 

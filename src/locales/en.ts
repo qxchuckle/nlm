@@ -52,7 +52,7 @@ export const en = {
   uninstallInstalling: 'Installing {pkg} from npm...',
   uninstallInstallComplete: 'Installed {pkg}',
   uninstallNote:
-    'Note: Please manually reinstall actual dependencies (run npm install / yarn / pnpm install)',
+    'Note: Please manually reinstall actual dependencies (uninstall with --install option automatically reinstall)',
   uninstallSelectPackages: 'Select packages to uninstall',
   uninstallCancelled: 'Uninstall cancelled',
 

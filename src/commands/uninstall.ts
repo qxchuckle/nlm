@@ -16,7 +16,7 @@ import {
 import { getRuntime } from '../core/runtime';
 import logger from '../utils/logger';
 import { t } from '../utils/i18n';
-import { promptMultiSelect } from '../utils/prompt';
+import { promptMultiSelectPro } from '../utils/prompt';
 import { runInstall } from '../services/dependency';
 
 export interface UninstallOptions {
@@ -94,7 +94,7 @@ export const uninstall = async (
       logger.info(t('uninstallCancelled'));
       return;
     }
-    const selected = await promptMultiSelect(
+    const selected = await promptMultiSelectPro(
       t('uninstallSelectPackages'),
       installedPackages,
     );

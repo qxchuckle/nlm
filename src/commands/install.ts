@@ -16,7 +16,7 @@ import { getRuntime } from '../core/runtime';
 import { updateSinglePackage } from './update';
 import logger from '../utils/logger';
 import { t } from '../utils/i18n';
-import { promptMultiSelect, type MultiSelectChoice } from '../utils/prompt';
+import { promptMultiSelectPro, type MultiSelectChoice } from '../utils/prompt';
 
 /**
  * 安装单个包
@@ -162,7 +162,7 @@ export const install = async (packageNames?: string[]): Promise<void> => {
         : undefined,
     }));
 
-    const selectedPackages = await promptMultiSelect(
+    const selectedPackages = await promptMultiSelectPro(
       t('installSelectPackages'),
       choices,
     );

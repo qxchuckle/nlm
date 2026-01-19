@@ -7,7 +7,7 @@ import {
 } from '../core/config';
 import { getRuntime } from '../core/runtime';
 import logger from '../utils/logger';
-import { t } from '../utils/i18n';
+import { Messages, t } from '../utils/i18n';
 import { promptConfigItem, type ConfigItemDefinition } from '../utils/prompt';
 import { DEFAULT_CONFIG, NlmConfig } from '../types';
 
@@ -15,7 +15,10 @@ import { DEFAULT_CONFIG, NlmConfig } from '../types';
  * 配置项定义列表
  * 添加新配置项只需在此数组中添加即可
  */
-const configItems: ConfigItemDefinition[] = [
+const configItems: (ConfigItemDefinition & {
+  key: keyof NlmConfig; /** 标签翻译 key */
+  labelKey: keyof Messages;
+})[] = [
   {
     type: 'select',
     key: 'packageManager',
