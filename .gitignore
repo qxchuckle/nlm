@@ -27,3 +27,4 @@ coverage/
 *.tgz
 .tsbuildinfo
 .rollup.cache
+.pnpm-store
