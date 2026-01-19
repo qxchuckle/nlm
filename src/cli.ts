@@ -7,6 +7,7 @@ import { install } from './commands/install';
 import { update } from './commands/update';
 import { uninstall } from './commands/uninstall';
 import { list } from './commands/list';
+import { config } from './commands/config';
 import { NlmError } from './types';
 import { initRuntime, updateRuntime, type Locale } from './core/runtime';
 import logger from './utils/logger';
@@ -169,6 +170,14 @@ const main = async () => {
     .description(t('cmdListDesc'))
     .option('-s, --store', t('optionStore'))
     .action(wrapAction(async (options) => list(options.store ?? false)));
+
+  // config 命令
+  program
+    .command('config')
+    .alias('c')
+    .description(t('cmdConfigDesc'))
+    .option('-g, --global', t('optionGlobal'))
+    .action(wrapAction(async (options) => config(options.global ?? false)));
 
   // 处理未知命令
   program.on('command:*', (operands) => {

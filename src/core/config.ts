@@ -1,4 +1,4 @@
-import { NlmConfig } from '../types';
+import { DEFAULT_CONFIG, NlmConfig } from '../types';
 import {
   getConfigPath,
   getProjectNlmDir,
@@ -12,13 +12,6 @@ import {
   pathExistsSync,
 } from '../utils/file';
 import logger from '@/utils/logger';
-
-/**
- * 默认配置
- */
-const defaultConfig: NlmConfig = {
-  packageManager: 'npm',
-};
 
 /**
  * 初始化配置文件（如果不存在）
@@ -49,7 +42,7 @@ export const readConfig = (
     logger.debug(`全局配置内容: ${JSON.stringify(globalConfig)}`);
     config = { ...globalConfig, ...config };
   }
-  const result = { ...defaultConfig, ...config };
+  const result = { ...DEFAULT_CONFIG, ...config };
   logger.debug(`配置合并结果: ${JSON.stringify(result)}`);
   return result;
 };
@@ -74,11 +67,9 @@ export const configExists = (workingDir: string): boolean => {
 /**
  * 获取配置的包管理器
  */
-export const getConfiguredPackageManager = (
-  workingDir: string,
-): 'npm' | 'yarn' | 'pnpm' => {
+export const getConfiguredPackageManager = (workingDir: string): string => {
   const config = readConfig(workingDir, true);
-  return config.packageManager || 'npm';
+  return config.packageManager || DEFAULT_CONFIG.packageManager;
 };
 
 /**

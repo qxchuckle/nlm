@@ -1,4 +1,11 @@
 /**
+ * 默认配置
+ */
+export const DEFAULT_CONFIG: Required<NlmConfig> = {
+  packageManager: 'npm',
+};
+
+/**
  * NLM 命令错误
  * 用于在命令执行中抛出错误，由外层统一捕获处理
  */
@@ -94,8 +101,7 @@ export interface StoreConfig {
  */
 export interface NlmConfig {
   /** 用于安装冲突依赖的包管理器 */
-  packageManager?: 'npm' | 'yarn' | 'pnpm';
-  /** 其他配置项... */
+  packageManager?: string;
 }
 
 /**
@@ -124,3 +130,5 @@ export interface CopyResult {
 
 // 重新导出运行时配置类型
 export type { RuntimeConfig } from '../core/runtime';
+
+// 默认使用的

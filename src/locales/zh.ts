@@ -74,6 +74,22 @@ export const zh = {
   listUsedBy: '使用项目:',
   listUsedByCount: '{count} 个',
 
+  // config 命令
+  cmdConfigDesc: '交互式配置 nlm',
+  optionGlobal: '配置全局设置（默认为项目级配置）',
+  configGlobalMode: '配置全局设置',
+  configProjectMode: '配置项目设置',
+  configSelectPackageManager: '选择包管理器',
+  configCurrent: '(当前)',
+  configCustom: '自定义...',
+  configInputCustom: '输入自定义值',
+  configInputRequired: '包管理器不能为空',
+  configSaved: '{type}配置已保存',
+  configGlobal: '全局',
+  configProject: '项目',
+  configResult: '配置结果:',
+  configPackageManager: '包管理器:',
+
   // 通用错误
   errInvalidProject:
     '当前目录不是有效的项目（缺少 package.json 或 node_modules）',

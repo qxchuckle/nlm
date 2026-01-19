@@ -64,6 +64,8 @@ Options:
   -f, --force 强制安装，跳过 hash 检查
 ```
 
+同 npm 一样，已经安装过的包，包名未指定版本时，将按 lockfile 中的 lock 版本规则更新。
+
 ### update
 
 更新包到当前项目，如果没有指定包名，则更新所有已安装的 nlm 包
@@ -76,7 +78,7 @@ Options:
   -f, --force 强制更新，跳过 hash 检查
 ```
 
-## list
+### list
 
 列出项目或全局 store 中的所有包
 
@@ -88,13 +90,25 @@ Options:
   -s, --store 列出全局 store 中的所有包
 ```
 
-## uninstall
+### uninstall
 
 在当前项目中卸载包
 
 ```bash
 nlm uninstall [package]
 nlm un
+```
+
+### config
+
+交互式配置 nlm，自动生成项目或全局配置
+
+```bash
+nlm config [options]
+nlm c
+
+Options:
+  -g, --global 配置全局设置 (默认是项目级配置)
 ```
 
 ## Common Options

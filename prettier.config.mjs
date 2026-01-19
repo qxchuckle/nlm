@@ -1,7 +1,6 @@
 // @ts-check
-import { defineConfig } from '@archoleat/prettier-define-config';
-import 'prettier';
-export default defineConfig({
+/** @type {import('prettier').Config} */
+export default {
   arrowParens: 'always', // 箭头函数参数周围加上括号
   bracketSameLine: true, // 大括号与代码在同一行
   bracketSpacing: true, // 大括号内部加空格
@@ -22,4 +21,4 @@ export default defineConfig({
   embeddedLanguageFormatting: 'auto', // 嵌入语言格式自动
   tabWidth: 2, // Tab宽度为2个空格
   endOfLine: 'auto', // 行尾自动
-});
+};

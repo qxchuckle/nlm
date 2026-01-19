@@ -1,5 +1,5 @@
 // @ts-check
-import { defineConfig } from '@archoleat/commitlint-define-config';
-export default defineConfig({
+/** @type {import('@commitlint/types').UserConfig} */
+export default {
   extends: ['@commitlint/config-conventional'],
-});
+};

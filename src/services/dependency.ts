@@ -143,7 +143,7 @@ const filterConflictsNeedInstall = (
  * 执行安装命令并等待完成
  */
 const runInstallCommand = (
-  pm: 'npm' | 'yarn' | 'pnpm' | string,
+  pm: string,
   packageSpecs: string[],
   cwd: string,
 ): Promise<void> => {
@@ -177,7 +177,7 @@ export const runInstall = async (
  * 添加 --legacy-peer-deps 等标志跳过 peer dependency 检查
  */
 const getInstallCommand = (
-  pm: 'npm' | 'yarn' | 'pnpm' | string,
+  pm: string,
   packageSpecs: string[],
 ): { cmd: string; args: string[] } => {
   return {

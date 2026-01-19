@@ -79,6 +79,22 @@ export const en = {
   listUsedBy: 'Used by:',
   listUsedByCount: '{count} projects',
 
+  // config command
+  cmdConfigDesc: 'Configure nlm interactively',
+  optionGlobal: 'Configure global settings (default is project-level)',
+  configGlobalMode: 'Configuring global settings',
+  configProjectMode: 'Configuring project settings',
+  configSelectPackageManager: 'Select package manager',
+  configCurrent: '(current)',
+  configCustom: 'Custom...',
+  configInputCustom: 'Enter custom value',
+  configInputRequired: 'Package manager cannot be empty',
+  configSaved: '{type} configuration saved',
+  configGlobal: 'Global',
+  configProject: 'Project',
+  configResult: 'Configuration result:',
+  configPackageManager: 'Package manager:',
+
   // Common errors
   errInvalidProject:
     'Current directory is not a valid project (missing package.json or node_modules)',
