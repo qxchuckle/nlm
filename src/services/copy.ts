@@ -127,7 +127,7 @@ export const copyPackageToProject = async (
   }
 
   // 清理并复制到 .nlm
-  removeSync(nlmPackageDir);
+  // removeSync(nlmPackageDir);
   ensureDirSync(nlmPackageDir);
   await fs.copy(storeDir, nlmPackageDir);
 

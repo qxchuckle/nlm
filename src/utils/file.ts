@@ -96,6 +96,13 @@ export const removeSync = (path: string): void => {
 };
 
 /**
+ * 同步清空目录（保留目录本身）
+ */
+export const emptyDirSync = (dir: string): void => {
+  fs.emptyDirSync(dir);
+};
+
+/**
  * 读取目录内容
  */
 export const readdir = async (dir: string): Promise<string[]> => {

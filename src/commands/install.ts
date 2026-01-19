@@ -138,8 +138,6 @@ export const shouldInstallOrUpdate = (
 export const install = async (packageNames?: string[]): Promise<void> => {
   const { workingDir } = getRuntime();
 
-  const startTime = Date.now();
-
   // 检查当前目录是否是有效项目
   if (!isValidProject(workingDir)) {
     throw new NlmError(t('errInvalidProject'));
@@ -175,6 +173,7 @@ export const install = async (packageNames?: string[]): Promise<void> => {
     packageNames = selectedPackages;
   }
 
+  const startTime = Date.now();
   let installedCount = 0;
   let updatedCount = 0;
 
