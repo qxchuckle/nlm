@@ -14,6 +14,7 @@ import { t } from '../utils/i18n';
  */
 export const push = async (): Promise<void> => {
   const { workingDir, force } = getRuntime();
+  const startTime = Date.now();
 
   // 读取当前包的 package.json
   const pkg = readPackageManifest(workingDir);
@@ -111,7 +112,10 @@ export const push = async (): Promise<void> => {
     }
   }
 
-  logger.success(t('pushComplete', { count: updatedCount }));
+  logger.success(
+    t('pushComplete', { count: updatedCount }),
+    logger.duration(startTime),
+  );
 };
 
 export default push;

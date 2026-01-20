@@ -192,7 +192,6 @@ export const en = {
   debugGitignoreAddFailed: 'Failed to add .gitignore: {error}',
   debugAlreadyInGitignore: '{entry} already in .gitignore',
   debugAddToGitignore: 'Adding to .gitignore: {entries}',
-  debugComputeFilesSignatureTime:
-    'Compute files signature: {signature} {time}ms',
-  debugCopyTime: 'Copy time: {time}ms',
+  debugComputeFilesSignature: 'Compute files signature: {signature}',
+  debugCopyTime: 'Copy files',
 };

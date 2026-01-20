@@ -2,16 +2,24 @@ import { join, relative } from 'path';
 import fs from 'fs-extra';
 import {
   pathExistsSync,
-  readdirSync,
-  lstatSync,
+  readdirWithFileTypesSync,
   removeSync,
 } from '../utils/file';
 import logger from '../utils/logger';
 import { t } from '../utils/i18n';
 
+const IGNORED_DIRS = new Set(['.bin', '.cache', '@types']);
+
+/**
+ * 判断目录名是否应该跳过
+ */
+const shouldSkipDir = (name: string): boolean => {
+  // 跳过指定的目录
+  return IGNORED_DIRS.has(name);
+};
+
 /**
  * 查找 node_modules 中所有同名包的路径
- * 递归搜索嵌套的 node_modules（跳过软链接目录）
  */
 export const findAllNestedPackages = (
   nodeModulesDir: string,
@@ -28,34 +36,35 @@ export const findAllNestedPackages = (
     results.push(targetPath);
   }
 
-  // 遍历当前 node_modules 下的所有目录
-  const items = readdirSync(nodeModulesDir);
+  // 遍历当前 node_modules 下的所有目录（使用 withFileTypes 减少系统调用）
+  const entries = readdirWithFileTypesSync(nodeModulesDir);
 
-  for (const item of items) {
-    const itemPath = join(nodeModulesDir, item);
-    const stats = lstatSync(itemPath);
-
-    // 跳过软链接和非目录
-    if (!stats?.isDirectory() || stats.isSymbolicLink()) {
+  for (const entry of entries) {
+    // 跳过非目录、软链接和需要忽略的目录
+    if (
+      !entry.isDirectory() ||
+      entry.isSymbolicLink() ||
+      shouldSkipDir(entry.name)
+    ) {
       continue;
     }
 
-    if (item.startsWith('@')) {
-      // scoped 包目录，遍历其子目录
-      const scopedItems = readdirSync(itemPath);
-      for (const scopedItem of scopedItems) {
-        const scopedItemPath = join(itemPath, scopedItem);
-        const scopedStats = lstatSync(scopedItemPath);
+    const itemPath = join(nodeModulesDir, entry.name);
 
+    if (entry.name.startsWith('@')) {
+      // scoped 包目录，遍历其子目录
+      const scopedEntries = readdirWithFileTypesSync(itemPath);
+      for (const scopedEntry of scopedEntries) {
         // 跳过软链接
-        if (scopedStats?.isSymbolicLink()) {
+        if (scopedEntry.isSymbolicLink()) {
           continue;
         }
 
+        const scopedItemPath = join(itemPath, scopedEntry.name);
         const nestedNodeModules = join(scopedItemPath, 'node_modules');
         findAllNestedPackages(nestedNodeModules, packageName, results);
       }
-    } else if (item !== packageName) {
+    } else if (entry.name !== packageName) {
       // 普通包目录，检查其 node_modules
       const nestedNodeModules = join(itemPath, 'node_modules');
       findAllNestedPackages(nestedNodeModules, packageName, results);
@@ -84,7 +93,7 @@ export const replaceNestedPackages = async (
   logger.debug(t('nestedDebugPaths', { paths: nestedPaths.join('\n') }));
 
   if (nestedPaths.length === 0) {
-    logger.debug(t('nestedNoIndirectDeps', { pkg: logger.pkg(packageName) }));
+    // logger.debug(t('nestedNoIndirectDeps', { pkg: logger.pkg(packageName) }));
     return 0;
   }
 

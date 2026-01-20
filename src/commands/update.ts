@@ -22,6 +22,7 @@ import { replaceNestedPackages } from '../services/nested';
 import { getRuntime } from '../core/runtime';
 import logger from '../utils/logger';
 import { t } from '../utils/i18n';
+import chalk from 'chalk';
 
 /**
  * 执行 update 命令
@@ -139,10 +140,16 @@ export const updateSinglePackage = async (name: string): Promise<boolean> => {
   //   return false;
   // }
 
-  logger.info(t('updateSingle', { pkg: logger.pkg(name, versionToInstall) }));
+  logger.info(
+    t('updateSingle', { pkg: logger.pkg(name, versionToInstall) }),
+    chalk.gray('→'),
+    logger.path(workingDir),
+  );
 
   // 复制包到 .nlm 并在 node_modules 中创建软链接
+  let startTime = Date.now();
   const copyResult = await copyPackageToProject(name, versionToInstall);
+  logger.debug('copy', logger.duration(startTime));
 
   // 获取 .nlm 中的实际包路径
   const nlmPackageDir = getProjectPackageDir(workingDir, name);
@@ -150,15 +157,16 @@ export const updateSinglePackage = async (name: string): Promise<boolean> => {
   // 处理依赖冲突
   await checkAndHandleDependencyConflicts(name, nlmPackageDir, workingDir);
 
+  startTime = Date.now();
   // 替换嵌套的同名包（使用软链接）
   await replaceNestedPackages(workingDir, name, nlmPackageDir);
+  logger.debug('replaceNested', logger.duration(startTime));
 
   // 更新 lockfile 中的 signature
   addPackageToLockfile(workingDir, name, {
     version: lockEntry.version,
     signature: copyResult.signature,
   });
-
   return true;
 };
 

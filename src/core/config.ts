@@ -34,11 +34,11 @@ export const readConfig = (
   initConfigIfNotExists(workingDir);
   const configPath = getConfigPath(workingDir);
   let config = readJsonSync<NlmConfig>(configPath);
-  logger.debug(`项目配置: ${logger.path(configPath)}`);
+  // logger.debug(`项目配置: ${logger.path(configPath)}`);
   logger.debug(`项目配置内容: ${JSON.stringify(config)}`);
   if (extendsGlobalConfig) {
     const globalConfig = readGlobalConfig();
-    logger.debug(`全局配置: ${logger.path(getGlobalConfigPath())}`);
+    // logger.debug(`全局配置: ${logger.path(getGlobalConfigPath())}`);
     logger.debug(`全局配置内容: ${JSON.stringify(globalConfig)}`);
     config = { ...globalConfig, ...config };
   }

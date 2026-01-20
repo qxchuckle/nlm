@@ -34,12 +34,11 @@ export const computeFilesSignature = async (
   h64.update(fileHashes.join(''));
   const signature = h64.digest().toString(16).padStart(16, '0');
 
-  const endTime = Date.now();
   logger.debug(
-    t('debugComputeFilesSignatureTime', {
+    t('debugComputeFilesSignature', {
       signature,
-      time: endTime - startTime,
     }),
+    logger.duration(startTime),
   );
 
   return signature;

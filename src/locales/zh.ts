@@ -183,6 +183,6 @@ export const zh = {
   debugGitignoreAddFailed: '添加 .gitignore 失败: {error}',
   debugAlreadyInGitignore: '{entry} 已在 .gitignore 中',
   debugAddToGitignore: '添加到 .gitignore 的条目: {entries}',
-  debugComputeFilesSignatureTime: '计算文件签名: {signature} {time}ms',
-  debugCopyTime: '复制耗时: {time}ms',
+  debugComputeFilesSignature: '计算文件签名: {signature}',
+  debugCopyTime: '复制文件',
 };

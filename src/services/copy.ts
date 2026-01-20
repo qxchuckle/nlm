@@ -8,7 +8,13 @@ import {
   writeSignatureFile,
 } from '../core/hash';
 import { getPackFiles, readPackageManifest } from '../utils/package';
-import { ensureDirSync, removeSync, pathExistsSync } from '../utils/file';
+import {
+  ensureDirSync,
+  removeSync,
+  pathExistsSync,
+  copyWithHardlinks,
+  extractTopLevelPaths,
+} from '../utils/file';
 import { getRuntime } from '../core/runtime';
 import logger from '../utils/logger';
 import { ensureGitignoreHasNlm } from '@/utils/gitignore';
@@ -27,7 +33,7 @@ const copyFilesByTopLevel = async (
   // removeSync(destDir);
   // ensureDirSync(destDir);
   // 提取顶层路径
-  const topLevelPaths = [...new Set(files.map((f) => f.split('/')[0]))];
+  const topLevelPaths = extractTopLevelPaths(files);
   // 并行复制每个顶层路径
   await Promise.all(
     topLevelPaths.map(async (topLevel) => {
@@ -36,8 +42,7 @@ const copyFilesByTopLevel = async (
       await fs.copy(src, dest);
     }),
   );
-  const copyEndTime = Date.now();
-  logger.debug(t('debugCopyTime', { time: copyEndTime - copyStartTime }));
+  logger.debug(t('debugCopyTime'), logger.duration(copyStartTime));
 };
 
 /**
@@ -138,10 +143,8 @@ export const copyPackageToProject = async (
     }
   }
 
-  // 清理并复制到 .nlm
-  // removeSync(nlmPackageDir);
-  ensureDirSync(nlmPackageDir);
-  await fs.copy(storeDir, nlmPackageDir);
+  // 使用硬链接复制到项目 .nlm
+  await copyWithHardlinks(storeDir, nlmPackageDir);
 
   // 在 node_modules 中创建软链接
   await ensureSymlink(nlmPackageDir, nodeModulesDir);

@@ -1,5 +1,5 @@
 import fs from 'fs-extra';
-import { dirname } from 'path';
+import { dirname, join } from 'path';
 
 /**
  * 确保目录存在
@@ -125,6 +125,18 @@ export const readdirSync = (dir: string): string[] => {
 };
 
 /**
+ * 同步读取目录内容（带文件类型信息）
+ * 减少系统调用次数，比 readdirSync + lstatSync 更高效
+ */
+export const readdirWithFileTypesSync = (dir: string): fs.Dirent[] => {
+  try {
+    return fs.readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+};
+
+/**
  * 获取文件状态
  */
 export const stat = async (path: string): Promise<fs.Stats | null> => {
@@ -225,4 +237,51 @@ export const createSymlinkSync = (target: string, path: string): void => {
  */
 export const appendFileSync = (path: string, content: string): void => {
   fs.appendFileSync(path, content, 'utf-8');
+};
+
+/**
+ * 提取顶层路径
+ */
+export const extractTopLevelPaths = (paths: string[]): string[] => {
+  return [...new Set(paths.map((p) => p.split('/')[0]))];
+};
+
+/**
+ * 递归遍历源目录，为每个文件创建硬链接
+ */
+export const copyWithHardlinks = async (
+  srcDir: string,
+  destDir: string,
+): Promise<void> => {
+  const entries = await fs.readdir(srcDir, { withFileTypes: true });
+
+  await Promise.all(
+    entries.map(async (entry) => {
+      const destPath = join(destDir, entry.name);
+      await fs.remove(destPath);
+    }),
+  );
+
+  const _fn = async (srcDir: string, destDir: string) => {
+    const entries = await fs.readdir(srcDir, { withFileTypes: true });
+    await Promise.all(
+      entries.map(async (entry) => {
+        const srcPath = join(srcDir, entry.name);
+        const destPath = join(destDir, entry.name);
+
+        if (entry.isDirectory()) {
+          await _fn(srcPath, destPath);
+        } else if (entry.isFile()) {
+          // 从store分发到项目里用硬链接速度更快
+          await fs.ensureLink(srcPath, destPath);
+        } else if (entry.isSymbolicLink()) {
+          // 保留符号链接
+          const linkTarget = await fs.readlink(srcPath);
+          await fs.symlink(linkTarget, destPath);
+        }
+      }),
+    );
+  };
+
+  await _fn(srcDir, destDir);
 };
