@@ -158,7 +158,7 @@ const runInstallCommand = (
   }
   const { cmd, args } = getInstallCommand(pm, packageSpecs);
   const command = `${cmd} ${args.join(' ')}`;
-  logger.debug(t('depDebugRunCommand', { cmd: logger.cmd(command) }));
+  logger.info(t('depDebugRunCommand', { cmd: logger.cmd(command) }));
   execSync(command, {
     cwd,
     stdio: 'inherit',
