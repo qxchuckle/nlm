@@ -1,42 +1,12 @@
-import crypto from 'crypto';
 import fs from 'fs-extra';
 import { join } from 'path';
+import xxhash, { type XXHashAPI } from 'xxhash-wasm';
 import { SIGNATURE_FILE_NAME } from '../constants';
+import logger from '../utils/logger';
+import { t } from '../utils/i18n';
 
 /**
- * 计算单个文件的 hash
- * @param filePath 文件路径
- * @param relativePath 相对路径（用于包含在 hash 计算中）
- */
-export const getFileHash = (
-  filePath: string,
-  relativePath: string = '',
-): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const stream = fs.createReadStream(filePath);
-    const md5sum = crypto.createHash('md5');
-
-    // 将相对路径也纳入 hash 计算，确保路径变化也会导致 hash 变化
-    md5sum.update(relativePath.replace(/\\/g, '/'));
-
-    stream.on('data', (data) => md5sum.update(data));
-    stream.on('error', reject);
-    stream.on('end', () => {
-      resolve(md5sum.digest('hex'));
-    });
-  });
-};
-
-/**
- * 计算多个文件的综合签名
- * @param fileHashes 各文件的 hash 数组
- */
-export const computeSignature = (fileHashes: string[]): string => {
-  return crypto.createHash('md5').update(fileHashes.join('')).digest('hex');
-};
-
-/**
- * 计算目录下所有文件的签名
+ * 计算目录下所有文件的签名（使用 xxhash64 流式计算）
  * @param files 文件列表（相对路径）
  * @param baseDir 基础目录
  */
@@ -44,14 +14,35 @@ export const computeFilesSignature = async (
   files: string[],
   baseDir: string,
 ): Promise<string> => {
+  const startTime = Date.now();
+  const hasher = await xxhash();
+
   // 对文件列表排序，确保顺序一致
   const sortedFiles = [...files].sort();
 
-  const hashes = await Promise.all(
-    sortedFiles.map((file) => getFileHash(join(baseDir, file), file)),
+  const fileHashes = await Promise.all(
+    sortedFiles.map(async (file) => {
+      const normalizedPath = file.replace(/\\/g, '/');
+      const data = await fs.readFile(join(baseDir, file));
+      const h = hasher.create64();
+      h.update(normalizedPath).update(data);
+      return h.digest().toString(16);
+    }),
   );
 
-  return computeSignature(hashes);
+  const h64 = hasher.create64();
+  h64.update(fileHashes.join(''));
+  const signature = h64.digest().toString(16).padStart(16, '0');
+
+  const endTime = Date.now();
+  logger.debug(
+    t('debugComputeFilesSignatureTime', {
+      signature,
+      time: endTime - startTime,
+    }),
+  );
+
+  return signature;
 };
 
 /**

@@ -46,6 +46,9 @@ importers:
       tar:
         specifier: ^7.5.3
         version: 7.5.3
+      xxhash-wasm:
+        specifier: ^1.1.0
+        version: 1.1.0
     devDependencies:
       '@commitlint/cli':
         specifier: ^20.3.1
@@ -4135,6 +4138,12 @@ packages:
       }
     engines: { node: ^20.17.0 || >=22.9.0 }
 
+  xxhash-wasm@1.1.0:
+    resolution:
+      {
+        integrity: sha512-147y/6YNh+tlp6nd/2pWq38i9h6mz/EuQ6njIrmW8D1BS5nCqs0P6DG+m6zTGnNz5I+uhZ0SHxBs9BsPrwcKDA==,
+      }
+
   y18n@5.0.8:
     resolution:
       {
@@ -6356,6 +6365,8 @@ snapshots:
     dependencies:
       imurmurhash: 0.1.4
       signal-exit: 4.1.0
+
+  xxhash-wasm@1.1.0: {}
 
   y18n@5.0.8: {}
 

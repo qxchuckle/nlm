@@ -155,4 +155,44 @@ export const en = {
   statusFixBroken: 'Symlinks are broken, run {cmd} to fix',
   statusFixMissing:
     'Some packages are missing from store, run {cmd} in the package directory',
+
+  // copy service
+  copyReadPackageJsonFailed: 'Failed to read package.json',
+  copyNoFilesToPublish: 'No files to publish',
+  copyNoChange: '{pkg} unchanged',
+  copyCopiedToStore: 'Copied {pkg} to store',
+  copyNotInStore: '{pkg} does not exist in store',
+
+  // nested service
+  nestedDebugPaths: 'Nested package paths: {paths}',
+  nestedNoIndirectDeps: 'No packages depend on {pkg} indirectly',
+  nestedFoundIndirectDeps:
+    'Found {count} packages depending on {pkg} indirectly',
+  nestedDebugReplaced: 'Replaced: {from} -> {to}',
+  nestedReplaceFailed: 'Replace failed: {path}',
+  nestedReplaceSuccess: 'Replaced {count} nested packages',
+
+  // dependency service
+  depConflictDetected:
+    'Detected {total} dependency conflicts, {need} need to be installed',
+  depNeedInstall: '[need install]',
+  depAlreadyInstalled: '[installed]',
+  depRequires: 'requires {version}',
+  depProjectHas: 'project has {version}',
+  depInstallFailed: 'Failed to install conflicting dependencies',
+  depDebugRunCommand: 'Running install command: {cmd}',
+
+  // debug logs (low priority)
+  debugProjectConfig: 'Project config: {path}',
+  debugProjectConfigContent: 'Project config content: {content}',
+  debugGlobalConfig: 'Global config: {path}',
+  debugGlobalConfigContent: 'Global config content: {content}',
+  debugConfigMerged: 'Config merge result: {content}',
+  debugInitGlobalConfig: 'Initialized global config file: {path}',
+  debugGitignoreAddFailed: 'Failed to add .gitignore: {error}',
+  debugAlreadyInGitignore: '{entry} already in .gitignore',
+  debugAddToGitignore: 'Adding to .gitignore: {entries}',
+  debugComputeFilesSignatureTime:
+    'Compute files signature: {signature} {time}ms',
+  debugCopyTime: 'Copy time: {time}ms',
 };

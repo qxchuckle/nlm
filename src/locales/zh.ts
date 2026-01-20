@@ -148,4 +148,41 @@ export const zh = {
   statusOutdatedCount: '{count} 个可更新',
   statusFixBroken: '软链接断开，运行 {cmd} 修复',
   statusFixMissing: '部分包在 store 中不存在，请在包目录运行 {cmd}',
+
+  // copy service
+  copyReadPackageJsonFailed: '无法读取 package.json',
+  copyNoFilesToPublish: '没有找到要发布的文件',
+  copyNoChange: '{pkg} 内容未变化',
+  copyCopiedToStore: '已复制 {pkg} 到 store',
+  copyNotInStore: '{pkg} 不存在于 store',
+
+  // nested service
+  nestedDebugPaths: '嵌套包路径: {paths}',
+  nestedNoIndirectDeps: '没有间接依赖 {pkg} 的包',
+  nestedFoundIndirectDeps: '发现 {count} 个间接依赖 {pkg} 的包',
+  nestedDebugReplaced: '已替换: {from} -> {to}',
+  nestedReplaceFailed: '替换失败: {path}',
+  nestedReplaceSuccess: '已替换 {count} 个嵌套包',
+
+  // dependency service
+  depConflictDetected: '检测到 {total} 依赖冲突，还需要安装 {need} 个',
+  depNeedInstall: '[需要安装]',
+  depAlreadyInstalled: '[已安装]',
+  depRequires: '需要 {version}',
+  depProjectHas: '项目中 {version}',
+  depInstallFailed: '安装冲突依赖失败',
+  depDebugRunCommand: '执行安装命令: {cmd}',
+
+  // debug logs (low priority)
+  debugProjectConfig: '项目配置: {path}',
+  debugProjectConfigContent: '项目配置内容: {content}',
+  debugGlobalConfig: '全局配置: {path}',
+  debugGlobalConfigContent: '全局配置内容: {content}',
+  debugConfigMerged: '配置合并结果: {content}',
+  debugInitGlobalConfig: '初始化全局配置文件: {path}',
+  debugGitignoreAddFailed: '添加 .gitignore 失败: {error}',
+  debugAlreadyInGitignore: '{entry} 已在 .gitignore 中',
+  debugAddToGitignore: '添加到 .gitignore 的条目: {entries}',
+  debugComputeFilesSignatureTime: '计算文件签名: {signature} {time}ms',
+  debugCopyTime: '复制耗时: {time}ms',
 };

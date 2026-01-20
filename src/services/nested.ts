@@ -7,6 +7,7 @@ import {
   removeSync,
 } from '../utils/file';
 import logger from '../utils/logger';
+import { t } from '../utils/i18n';
 
 /**
  * 查找 node_modules 中所有同名包的路径
@@ -80,15 +81,18 @@ export const replaceNestedPackages = async (
   const topLevelPath = join(nodeModulesDir, packageName);
   const nestedPaths = allPaths.filter((p) => p !== topLevelPath);
 
-  logger.debug(`嵌套包路径: ${nestedPaths.join('\n')}`);
+  logger.debug(t('nestedDebugPaths', { paths: nestedPaths.join('\n') }));
 
   if (nestedPaths.length === 0) {
-    logger.info(`没有间接依赖 ${logger.pkg(packageName)} 的包`);
+    logger.debug(t('nestedNoIndirectDeps', { pkg: logger.pkg(packageName) }));
     return 0;
   }
 
-  logger.info(
-    `发现 ${nestedPaths.length} 个间接依赖 ${logger.pkg(packageName)} 的包`,
+  logger.debug(
+    t('nestedFoundIndirectDeps', {
+      count: nestedPaths.length,
+      pkg: logger.pkg(packageName),
+    }),
   );
 
   // 替换所有嵌套包（使用软链接）
@@ -102,16 +106,21 @@ export const replaceNestedPackages = async (
       const relativeTarget = relative(join(nestedPath, '..'), sourceDir);
       await fs.symlink(relativeTarget, nestedPath, 'junction');
 
-      logger.debug(`已替换: ${logger.path(nestedPath)} -> ${relativeTarget}`);
+      logger.debug(
+        t('nestedDebugReplaced', {
+          from: logger.path(nestedPath),
+          to: relativeTarget,
+        }),
+      );
       replaced++;
     } catch (error) {
-      logger.warn(`替换失败: ${nestedPath}`);
+      logger.debug(t('nestedReplaceFailed', { path: nestedPath }));
       logger.debug(String(error));
     }
   }
 
   if (replaced > 0) {
-    logger.success(`已替换 ${replaced} 个嵌套包`);
+    logger.debug(t('nestedReplaceSuccess', { count: replaced }));
   }
 
   return replaced;

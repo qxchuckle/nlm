@@ -12,6 +12,7 @@ import { getConfiguredPackageManager } from '../core/config';
 import { ensureDirSync, pathExistsSync } from '../utils/file';
 import { getProjectNlmDir } from '../constants';
 import logger from '../utils/logger';
+import { t } from '../utils/i18n';
 
 /**
  * 检测依赖冲突
@@ -78,14 +79,19 @@ export const handleDependencyConflicts = async (
   const needInstall = filterConflictsNeedInstall(conflicts, nodeModulesDir);
 
   logger.warn(
-    `检测到 ${conflicts.length} 依赖冲突，还需要安装 ${needInstall.length} 个`,
+    t('depConflictDetected', {
+      total: conflicts.length,
+      need: needInstall.length,
+    }),
   );
   conflicts.forEach((conflict) => {
     const isNeedInstall = needInstall.find((i) => i.name === conflict.name);
     logger.log(
-      `  - ${logger.pkg(conflict.name)} ${isNeedInstall ? '[需要安装]' : '[已安装]'} ` +
-        `需要 ${logger.version(conflict.requiredVersion)}, ` +
-        `项目中 ${logger.version(conflict.installedVersion)}`,
+      `  - ${logger.pkg(conflict.name)} ${isNeedInstall ? t('depNeedInstall') : t('depAlreadyInstalled')} ` +
+        `${t('depRequires', { version: logger.version(conflict.requiredVersion) })}, ` +
+        t('depProjectHas', {
+          version: logger.version(conflict.installedVersion),
+        }),
     );
   });
 
@@ -102,7 +108,7 @@ export const handleDependencyConflicts = async (
   try {
     await runInstallCommand(pm, depSpecs, nlmPkgDir);
   } catch (error) {
-    logger.error(`安装冲突依赖失败`);
+    logger.error(t('depInstallFailed'));
     throw error;
   }
 };
@@ -152,7 +158,7 @@ const runInstallCommand = (
   }
   const { cmd, args } = getInstallCommand(pm, packageSpecs);
   const command = `${cmd} ${args.join(' ')}`;
-  logger.debug(`执行安装命令: ${logger.cmd(command)}`);
+  logger.debug(t('depDebugRunCommand', { cmd: logger.cmd(command) }));
   execSync(command, {
     cwd,
     stdio: 'inherit',

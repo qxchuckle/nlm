@@ -162,7 +162,7 @@ export const getPackTree = async (workingDir: string): Promise<PackTree> => {
 
   const pkg = readPackageManifest(workingDir);
   if (!pkg) {
-    throw new Error('无法读取 package.json');
+    throw new Error(t('copyReadPackageJsonFailed'));
   }
 
   const reason = needsFullArborist(pkg);

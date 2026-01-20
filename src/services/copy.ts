@@ -1,7 +1,5 @@
 import fs from 'fs-extra';
 import { join, relative } from 'path';
-import { pipeline } from 'stream/promises';
-import * as tar from 'tar';
 import { CopyResult } from '../types';
 import { getPackageStoreDir, getProjectPackageDir } from '../constants';
 import {
@@ -14,6 +12,33 @@ import { ensureDirSync, removeSync, pathExistsSync } from '../utils/file';
 import { getRuntime } from '../core/runtime';
 import logger from '../utils/logger';
 import { ensureGitignoreHasNlm } from '@/utils/gitignore';
+import { t } from '../utils/i18n';
+
+/**
+ * 提取顶层路径，直接复制整个目录/文件
+ */
+const copyFilesByTopLevel = async (
+  files: string[],
+  srcDir: string,
+  destDir: string,
+): Promise<void> => {
+  const copyStartTime = Date.now();
+  // 清理目标目录并复制文件
+  // removeSync(destDir);
+  // ensureDirSync(destDir);
+  // 提取顶层路径
+  const topLevelPaths = [...new Set(files.map((f) => f.split('/')[0]))];
+  // 并行复制每个顶层路径
+  await Promise.all(
+    topLevelPaths.map(async (topLevel) => {
+      const src = join(srcDir, topLevel);
+      const dest = join(destDir, topLevel);
+      await fs.copy(src, dest);
+    }),
+  );
+  const copyEndTime = Date.now();
+  logger.debug(t('debugCopyTime', { time: copyEndTime - copyStartTime }));
+};
 
 /**
  * 复制包到全局 store
@@ -24,7 +49,7 @@ export const copyPackageToStore = async (): Promise<CopyResult> => {
   const pkg = readPackageManifest(workingDir);
 
   if (!pkg) {
-    throw new Error('无法读取 package.json');
+    throw new Error(t('copyReadPackageJsonFailed'));
   }
 
   const { name, version } = pkg;
@@ -33,7 +58,7 @@ export const copyPackageToStore = async (): Promise<CopyResult> => {
   // 获取要发布的文件列表
   const files = await getPackFiles(workingDir);
   if (files.length === 0) {
-    throw new Error('没有找到要发布的文件');
+    throw new Error(t('copyNoFilesToPublish'));
   }
 
   // 计算新签名
@@ -46,7 +71,7 @@ export const copyPackageToStore = async (): Promise<CopyResult> => {
       `${logger.pkg(name, version)} signature: exists=${existingSignature} current=${newSignature}`,
     );
     if (existingSignature === newSignature) {
-      logger.info(`${logger.pkg(name, version)} no change`);
+      logger.info(t('copyNoChange', { pkg: logger.pkg(name, version) }));
       return {
         success: true,
         signature: newSignature,
@@ -55,20 +80,12 @@ export const copyPackageToStore = async (): Promise<CopyResult> => {
     }
   }
 
-  // 清理目标目录并复制文件
-  removeSync(storeDir);
-  ensureDirSync(storeDir);
-
-  // 使用 tar 流式打包解包
-  await pipeline(
-    tar.create({ cwd: workingDir, gzip: false }, files),
-    tar.extract({ cwd: storeDir }),
-  );
+  await copyFilesByTopLevel(files, workingDir, storeDir);
 
   // 写入签名文件
   writeSignatureFile(storeDir, newSignature);
 
-  logger.success(`已复制 ${logger.pkg(name, version)} 到 store`);
+  logger.success(t('copyCopiedToStore', { pkg: logger.pkg(name, version) }));
 
   return {
     success: true,
@@ -91,7 +108,7 @@ export const copyPackageToProject = async (
   const storeDir = getPackageStoreDir(packageName, version);
 
   if (!pathExistsSync(storeDir)) {
-    throw new Error(`${packageName}@${version} 不存在于 store`);
+    throw new Error(t('copyNotInStore', { pkg: `${packageName}@${version}` }));
   }
 
   // 确保 .gitignore 中包含 .nlm
@@ -112,7 +129,7 @@ export const copyPackageToProject = async (
     if (existingSignature === storeSignature) {
       // 确保软链接存在且正确
       await ensureSymlink(nlmPackageDir, nodeModulesDir);
-      logger.info(`${logger.pkg(packageName, version)} no change`);
+      logger.info(t('copyNoChange', { pkg: logger.pkg(packageName, version) }));
       return {
         success: true,
         signature: storeSignature,
