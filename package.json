@@ -1,6 +1,6 @@
 {
   "name": "@qcqx/nlm",
-  "version": "1.2.5",
+  "version": "1.2.6",
   "type": "module",
   "description": "npm local modules - 本地 npm 包联调工具",
   "main": "lib/index.js",
