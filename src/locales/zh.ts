@@ -7,6 +7,7 @@ export const zh = {
   // push 命令
   cmdPushDesc: '推送当前包到全局 store，并更新所有使用此包的项目',
   optionForce: '强制执行，跳过 hash 检查',
+  optionPacklist: '强制使用 npm-packlist 获取文件列表',
   pushToStore: '推送 {pkg} 到 store...',
   pushedToStore: '已推送 {pkg} 到 store',
   pushFailed: '推送失败: {error}',

@@ -8,6 +8,7 @@ export const en = {
   cmdPushDesc:
     'Push current package to global store and update all projects using it',
   optionForce: 'Force execution, skip hash check',
+  optionPacklist: 'Force use npm-packlist to get file list',
   pushToStore: 'Pushing {pkg} to store...',
   pushedToStore: 'Pushed {pkg} to store',
   pushFailed: 'Push failed: {error}',

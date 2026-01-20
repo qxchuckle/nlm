@@ -16,10 +16,6 @@
 - 支持 i18n，默认自动识别语言环境，或使用 `--lang` 选项手动指定。
 - 本质来说，`nlm` 仅仅只是修改了 `node_modules` 中某个包的指向，其它一切都不会和包管理器有任何冲突。
 
-## Todo
-
-- 配套的vscode插件，以更方便管理 nlm store
-
 ## Installation
 
 ```bash
@@ -50,6 +46,7 @@ nlm p
 
 Options:
   -f, --force 强制推送，跳过 hash 检查
+  --packlist 强制使用 npm-packlist 获取文件列表，默认使用 tinyglobby 快速方案，特殊情况自动降级
 ```
 
 ### install

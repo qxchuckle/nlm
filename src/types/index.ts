@@ -45,8 +45,13 @@ export interface PackageManifest {
   private?: boolean;
   bin?: string | { [name: string]: string };
   main?: string;
-  browser?: string;
+  module?: string;
+  browser?: string | { [key: string]: string | false };
+  types?: string;
+  typings?: string;
+  exports?: unknown;
   files?: string[];
+  man?: string | string[];
   dependencies?: Dependencies;
   devDependencies?: Dependencies;
   peerDependencies?: Dependencies;
@@ -58,6 +63,18 @@ export interface PackageManifest {
   scripts?: { [name: string]: string };
   /** 内部使用：保存原始缩进 */
   __indent?: string;
+}
+
+/** 规范化后的 package.json 类型 */
+export interface NormalizedPackage extends PackageManifest {
+  // normalize-package-data 会将 bin 统一为对象形式
+  bin?: { [name: string]: string };
+  // 会添加默认的 main
+  main: string;
+  // browser 可以是字符串或对象形式
+  browser?: string | { [key: string]: string | false };
+  // man 可以是字符串或数组
+  man?: string | string[];
 }
 
 /**

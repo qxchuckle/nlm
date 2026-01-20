@@ -120,9 +120,11 @@ const main = async () => {
     .alias('p')
     .description(t('cmdPushDesc'))
     .option('-f, --force', t('optionForce'))
+    .option('--packlist', t('optionPacklist'))
     .action(
       wrapAction(async (options) => {
         if (options.force) updateRuntime({ force: true });
+        if (options.packlist) updateRuntime({ usePacklist: true });
         await push();
       }),
     );

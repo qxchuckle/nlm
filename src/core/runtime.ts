@@ -16,6 +16,8 @@ export interface RuntimeConfig {
   debug: boolean;
   /** 当前语言 */
   locale: Locale;
+  /** 强制使用 npm-packlist 获取文件列表 */
+  usePacklist: boolean;
 }
 
 const defaultConfig: RuntimeConfig = {
@@ -23,6 +25,7 @@ const defaultConfig: RuntimeConfig = {
   workingDir: process.cwd(),
   debug: false,
   locale: 'en',
+  usePacklist: false,
 };
 
 let currentConfig: RuntimeConfig = { ...defaultConfig };

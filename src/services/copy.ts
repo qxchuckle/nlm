@@ -47,7 +47,6 @@ const copyFilesByTopLevel = async (
 
 /**
  * 复制包到全局 store
- * 从 runtime 读取 workingDir 和 force 配置
  */
 export const copyPackageToStore = async (): Promise<CopyResult> => {
   const { workingDir, force } = getRuntime();
@@ -101,7 +100,6 @@ export const copyPackageToStore = async (): Promise<CopyResult> => {
 
 /**
  * 从 store 复制包到项目的 .nlm 并在 node_modules 中创建软链接
- * 从 runtime 读取 workingDir 和 force 配置
  * @param packageName 包名
  * @param version 版本
  */

@@ -34,6 +34,9 @@ importers:
       mri:
         specifier: ^1.2.0
         version: 1.2.0
+      normalize-package-data:
+        specifier: ^8.0.0
+        version: 8.0.0
       npm-packlist:
         specifier: ^10.0.3
         version: 10.0.3
@@ -46,6 +49,9 @@ importers:
       tar:
         specifier: ^7.5.3
         version: 7.5.3
+      tinyglobby:
+        specifier: ^0.2.15
+        version: 0.2.15
       xxhash-wasm:
         specifier: ^1.1.0
         version: 1.1.0
@@ -86,6 +92,9 @@ importers:
       '@types/node':
         specifier: ^20.10.0
         version: 20.19.29
+      '@types/normalize-package-data':
+        specifier: ^2.4.4
+        version: 2.4.4
       '@types/npm-packlist':
         specifier: ^7.0.3
         version: 7.0.3
@@ -1226,6 +1235,12 @@ packages:
       {
         integrity: sha512-YrT9ArrGaHForBaCNwFjoqJWmn8G1Pr7+BH/vwyLHciA9qT/wSiuOhxGCT50JA5xLvFBd6PIiGkE3afxcPE1nw==,
         tarball: https://registry.npmmirror.com/@types/node/-/node-20.19.29.tgz,
+      }
+
+  '@types/normalize-package-data@2.4.4':
+    resolution:
+      {
+        integrity: sha512-37i+OaWTh9qeK4LSHPsyRC7NahnGotNuZvjLSgcPzblpHB3rrCJxAOgI5gCdKm7coonsaX1Of0ILiTcnZjbfxA==,
       }
 
   '@types/npm-package-arg@6.1.4':
@@ -3190,6 +3205,13 @@ packages:
     engines: { node: ^20.17.0 || >=22.9.0 }
     hasBin: true
 
+  normalize-package-data@8.0.0:
+    resolution:
+      {
+        integrity: sha512-RWk+PI433eESQ7ounYxIp67CYuVsS1uYSonX3kA6ps/3LWfjVQa/ptEg6Y3T6uAMq1mWpX9PQ+qx+QaHpsc7gQ==,
+      }
+    engines: { node: ^20.17.0 || >=22.9.0 }
+
   npm-bundled@5.0.0:
     resolution:
       {
@@ -3909,7 +3931,6 @@ packages:
     resolution:
       {
         integrity: sha512-j2Zq4NyQYG5XMST4cbs02Ak8iJUdxRM0XI5QyxXuZOzKOINmWurp3smXu3y5wDcJrptwpSjgXHzIQxR0omXljQ==,
-        tarball: https://registry.npmmirror.com/tinyglobby/-/tinyglobby-0.2.15.tgz,
       }
     engines: { node: '>=12.0.0' }
 
@@ -4876,6 +4897,8 @@ snapshots:
   '@types/node@20.19.29':
     dependencies:
       undici-types: 6.21.0
+
+  '@types/normalize-package-data@2.4.4': {}
 
   '@types/npm-package-arg@6.1.4': {}
 
@@ -5859,6 +5882,12 @@ snapshots:
   nopt@9.0.0:
     dependencies:
       abbrev: 4.0.0
+
+  normalize-package-data@8.0.0:
+    dependencies:
+      hosted-git-info: 9.0.2
+      semver: 7.7.3
+      validate-npm-package-license: 3.0.4
 
   npm-bundled@5.0.0:
     dependencies:

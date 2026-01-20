@@ -50,10 +50,12 @@
     "inquirer-select-pro": "1.0.0-alpha.9",
     "light-date": "^1.2.0",
     "mri": "^1.2.0",
+    "normalize-package-data": "^8.0.0",
     "npm-packlist": "^10.0.3",
     "ora": "^5.4.1",
     "semver": "^7.5.4",
     "tar": "^7.5.3",
+    "tinyglobby": "^0.2.15",
     "xxhash-wasm": "^1.1.0"
   },
   "devDependencies": {
@@ -69,6 +71,7 @@
     "@rollup/plugin-typescript": "^12.3.0",
     "@types/fs-extra": "^11.0.4",
     "@types/node": "^20.10.0",
+    "@types/normalize-package-data": "^2.4.4",
     "@types/npm-packlist": "^7.0.3",
     "@types/npmcli__arborist": "^6.3.1",
     "@types/semver": "^7.5.6",
