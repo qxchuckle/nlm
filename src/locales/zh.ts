@@ -82,8 +82,8 @@ export const zh = {
   // config 命令
   cmdConfigDesc: '交互式配置 nlm',
   optionGlobal: '配置全局设置（默认为项目级配置）',
-  configGlobalMode: '配置全局设置',
-  configProjectMode: '配置项目设置',
+  configGlobalMode: '全局配置',
+  configProjectMode: '项目配置',
   configSelectPackageManager: '选择包管理器',
   configCurrent: '(当前)',
   configCustom: '自定义...',
@@ -94,6 +94,8 @@ export const zh = {
   configProject: '项目',
   configResult: '配置结果:',
   configPackageManager: '包管理器:',
+  configLang: '语言:',
+  configSelectLang: '选择语言',
 
   // 通用错误
   errInvalidProject:

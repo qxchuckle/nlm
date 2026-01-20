@@ -9,7 +9,9 @@ import { getRuntime } from '../core/runtime';
 import logger from '../utils/logger';
 import { Messages, t } from '../utils/i18n';
 import { promptConfigItem, type ConfigItemDefinition } from '../utils/prompt';
-import { DEFAULT_CONFIG, NlmConfig } from '../types';
+import { DEFAULT_CONFIG, NlmConfig, NlmError } from '../types';
+import { getConfigPath, getGlobalConfigPath } from '@/constants';
+import { isValidProject } from '@/utils/package';
 
 /**
  * 配置项定义列表
@@ -28,20 +30,35 @@ const configItems: (ConfigItemDefinition & {
     allowCustom: true,
     defaultValue: DEFAULT_CONFIG.packageManager,
   },
+  {
+    type: 'select',
+    key: 'lang',
+    labelKey: 'configLang',
+    messageKey: 'configSelectLang',
+    presets: ['auto', 'zh', 'en'],
+    allowCustom: false,
+    defaultValue: DEFAULT_CONFIG.lang,
+  },
 ];
 
 /**
  * 执行 config 命令
  */
 export const config = async (global: boolean): Promise<void> => {
-  const { workingDir } = getRuntime();
+  const { workingDir, nlmConfig } = getRuntime();
 
-  logger.info(global ? t('configGlobalMode') : t('configProjectMode'));
+  // 非全局配置时检查当前目录是否是有效项目
+  if (!global && !isValidProject(workingDir)) {
+    throw new NlmError(t('errInvalidProject'));
+  }
+
+  logger.info(
+    t(global ? 'configGlobalMode' : 'configProjectMode'),
+    logger.path(global ? getGlobalConfigPath() : getConfigPath(workingDir)),
+  );
 
   // 读取当前配置
-  const currentConfig = global
-    ? readGlobalConfig()
-    : readConfig(workingDir, true);
+  const currentConfig = global ? readGlobalConfig() : nlmConfig;
 
   // 遍历所有配置项进行交互
   const newConfig: Partial<NlmConfig> = {};

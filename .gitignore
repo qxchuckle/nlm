@@ -28,3 +28,4 @@ coverage/
 .tsbuildinfo
 .rollup.cache
 .pnpm-store
+.nlm

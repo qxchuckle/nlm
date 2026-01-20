@@ -67,8 +67,8 @@ export const writePackageManifest = (
  */
 export const isValidProject = (workingDir: string): boolean => {
   const hasPackageJson = pathExistsSync(join(workingDir, 'package.json'));
-  const hasNodeModules = pathExistsSync(join(workingDir, 'node_modules'));
-  return hasPackageJson && hasNodeModules;
+  // const hasNodeModules = pathExistsSync(join(workingDir, 'node_modules'));
+  return hasPackageJson; // && hasNodeModules;
 };
 
 /**

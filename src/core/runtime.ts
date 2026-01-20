@@ -4,6 +4,7 @@
  *
  * 注意：此模块不应导入 logger 或 i18n，以避免循环依赖
  */
+import { DEFAULT_CONFIG, NlmConfig } from '@/types';
 
 export type Locale = 'zh' | 'en';
 
@@ -18,6 +19,8 @@ export interface RuntimeConfig {
   locale: Locale;
   /** 强制使用 npm-packlist 获取文件列表 */
   usePacklist: boolean;
+  /** nlm 配置 */
+  nlmConfig: NlmConfig;
 }
 
 const defaultConfig: RuntimeConfig = {
@@ -26,6 +29,7 @@ const defaultConfig: RuntimeConfig = {
   debug: false,
   locale: 'en',
   usePacklist: false,
+  nlmConfig: DEFAULT_CONFIG,
 };
 
 let currentConfig: RuntimeConfig = { ...defaultConfig };

@@ -7,8 +7,17 @@ import { defineConfig } from 'rollup';
 // import replace from '@rollup/plugin-replace';
 import nodeExternals from 'rollup-plugin-node-externals';
 import dts from 'rollup-plugin-dts';
+import alias from '@rollup/plugin-alias';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const outputDir = 'lib';
+
+const aliasEntries = [
+  { find: '@', replacement: path.resolve(__dirname, 'src') },
+];
 
 export default defineConfig([
   {
@@ -35,6 +44,7 @@ export default defineConfig([
     ],
     external: ['../package.json'],
     plugins: [
+      alias({ entries: aliasEntries }),
       nodeExternals(),
       json(),
       nodeResolve({
@@ -72,6 +82,6 @@ export default defineConfig([
       preserveModulesRoot: 'src',
       entryFileNames: '[name].d.ts',
     },
-    plugins: [dts()],
+    plugins: [alias({ entries: aliasEntries }), dts()],
   },
 ]);

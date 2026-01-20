@@ -98,6 +98,8 @@ export const en = {
   configProject: 'Project',
   configResult: 'Configuration result:',
   configPackageManager: 'Package manager:',
+  configLang: 'Language:',
+  configSelectLang: 'Select language',
 
   // Common errors
   errInvalidProject:

@@ -14,6 +14,7 @@ import { NlmError } from './types';
 import { initRuntime, updateRuntime, type Locale } from './core/runtime';
 import logger from './utils/logger';
 import { t, initI18n, detectSystemLocale } from './utils/i18n';
+import { readConfig } from './core/config';
 
 const require = createRequire(import.meta.url);
 const program = new Command();
@@ -58,16 +59,25 @@ const parseLocale = (lang?: string): Locale => {
  * 使用 mri 轻量级解析 process.argv
  */
 const preParse = () => {
+  const workingDir = process.cwd();
   const argv = mri(process.argv.slice(2), {
     boolean: ['debug'],
     string: ['lang'],
   });
   const debug = argv.debug || isDebugEnabled();
-  const locale = parseLocale(argv.lang);
+  // 读取配置
+  // 注意，像是push后workingDir可能发生变化所以往往还是需要重新读取配置
+  const nlmConfig = readConfig({
+    workingDir,
+    extendsGlobalConfig: true,
+    initConfig: false,
+  });
+  const locale = parseLocale(argv.lang || nlmConfig.lang);
   return {
-    workingDir: process.cwd(),
+    workingDir,
     debug,
     locale,
+    nlmConfig,
   };
 };
 
@@ -93,7 +103,7 @@ const wrapAction = <T extends unknown[]>(
 
 const main = async () => {
   // 预解析全局选项（允许未知选项，避免过早退出）
-  const { workingDir, debug, locale } = preParse();
+  const { workingDir, debug, locale, nlmConfig } = preParse();
 
   // 初始化 i18n（用于命令描述翻译）
   initI18n(locale);
@@ -111,6 +121,7 @@ const main = async () => {
         workingDir,
         debug,
         locale,
+        nlmConfig,
       });
     });
 

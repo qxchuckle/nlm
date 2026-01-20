@@ -3,6 +3,7 @@
  */
 export const DEFAULT_CONFIG: Required<NlmConfig> = {
   packageManager: 'npm',
+  lang: 'auto',
 };
 
 /**
@@ -119,6 +120,8 @@ export interface StoreConfig {
 export interface NlmConfig {
   /** 用于安装冲突依赖的包管理器 */
   packageManager?: string;
+  /** 语言设置，auto 表示自动识别 */
+  lang?: 'auto' | 'zh' | 'en';
 }
 
 /**

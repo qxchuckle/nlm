@@ -27,11 +27,15 @@ export const initConfigIfNotExists = (workingDir: string): void => {
 /**
  * 读取项目配置
  */
-export const readConfig = (
-  workingDir: string,
-  extendsGlobalConfig: boolean,
-): NlmConfig => {
-  initConfigIfNotExists(workingDir);
+export const readConfig = (params: {
+  workingDir: string;
+  extendsGlobalConfig: boolean;
+  initConfig: boolean;
+}): NlmConfig => {
+  const { workingDir, extendsGlobalConfig, initConfig } = params;
+  if (initConfig) {
+    initConfigIfNotExists(workingDir);
+  }
   const configPath = getConfigPath(workingDir);
   let config = readJsonSync<NlmConfig>(configPath);
   // logger.debug(`项目配置: ${logger.path(configPath)}`);
@@ -68,7 +72,11 @@ export const configExists = (workingDir: string): boolean => {
  * 获取配置的包管理器
  */
 export const getConfiguredPackageManager = (workingDir: string): string => {
-  const config = readConfig(workingDir, true);
+  const config = readConfig({
+    workingDir,
+    extendsGlobalConfig: true,
+    initConfig: true,
+  });
   return config.packageManager || DEFAULT_CONFIG.packageManager;
 };
 
@@ -79,7 +87,11 @@ export const updateConfig = (
   workingDir: string,
   updates: Partial<NlmConfig>,
 ): void => {
-  const config = readConfig(workingDir, false);
+  const config = readConfig({
+    workingDir,
+    extendsGlobalConfig: false,
+    initConfig: true,
+  });
   const newConfig = { ...config, ...updates };
   writeConfig(workingDir, newConfig);
 };
