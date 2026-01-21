@@ -154,6 +154,8 @@ concurrently "npm run build:watch" "chokidar 'lib/**/*' -d 1000 -c 'echo 构建�
 
 ^14 ^16 版本交互式命令行输入将报错，但不影响核心功能
 
+开发环境 node >= 20
+
 # Reference
 
 - [yalc](https://github.com/wclr/yalc)
