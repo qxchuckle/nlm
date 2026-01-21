@@ -148,6 +148,12 @@ concurrently "npm run build:watch" "chokidar 'lib/**/*' -d 1000 -c 'echo 构建�
 # 监听 lib 目录下的所有文件，当文件变化时自动推送，1000ms 防抖
 ```
 
+# Compatibility
+
+兼容 node >= 18.17
+
+^14 ^16 版本交互式命令行输入将报错，但不影响核心功能
+
 # Reference
 
 - [yalc](https://github.com/wclr/yalc)
