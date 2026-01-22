@@ -54,10 +54,7 @@ const NPM_ALWAYS_INCLUDE_PATTERNS = [
 
 const readIgnoreFile = (workingDir: string, filename: string): string => {
   const ignorePath = join(workingDir, filename);
-  if (!pathExistsSync(ignorePath)) {
-    return '';
-  }
-  return readFileSync(ignorePath);
+  return readFileSync(ignorePath) || '';
 };
 
 /**

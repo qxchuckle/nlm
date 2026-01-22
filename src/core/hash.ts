@@ -4,6 +4,7 @@ import xxhash, { type XXHashAPI } from 'xxhash-wasm';
 import { SIGNATURE_FILE_NAME } from '../constants';
 import logger from '../utils/logger';
 import { t } from '../utils/i18n';
+import { pathExistsSync, readFileSync } from '@/utils/file';
 
 /**
  * 计算目录下所有文件的签名（使用 xxhash64 流式计算）
@@ -49,11 +50,7 @@ export const computeFilesSignature = async (
  */
 export const readSignatureFile = (dir: string): string => {
   const signaturePath = join(dir, SIGNATURE_FILE_NAME);
-  try {
-    return fs.readFileSync(signaturePath, 'utf-8').trim();
-  } catch {
-    return '';
-  }
+  return readFileSync(signaturePath)?.trim() || '';
 };
 
 /**

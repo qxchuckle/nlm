@@ -51,10 +51,7 @@ export const ensureGitignoreHasNlm = (workingDir: string): boolean => {
  */
 export const readGitignore = (workingDir: string): string => {
   const gitignorePath = join(workingDir, '.gitignore');
-  if (!pathExistsSync(gitignorePath)) {
-    return '';
-  }
-  return readFileSync(gitignorePath);
+  return readFileSync(gitignorePath) || '';
 };
 
 /**
@@ -70,7 +67,7 @@ export const appendGitignore = (
   if (!pathExistsSync(gitignorePath)) {
     return false;
   }
-  const content = readFileSync(gitignorePath);
+  const content = readFileSync(gitignorePath) || '';
   const needAppend = newEntry.filter((entry) => {
     const isIgnoredResult = isIgnored(content, entry);
     if (isIgnoredResult) {

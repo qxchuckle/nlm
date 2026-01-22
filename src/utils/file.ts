@@ -180,7 +180,10 @@ export const readFile = async (path: string): Promise<string> => {
 /**
  * 同步读取文件内容
  */
-export const readFileSync = (path: string): string => {
+export const readFileSync = (path: string): string | undefined => {
+  if (!pathExistsSync(path)) {
+    return undefined;
+  }
   return fs.readFileSync(path, 'utf-8');
 };
 
@@ -193,6 +196,17 @@ export const writeFile = async (
 ): Promise<void> => {
   await fs.ensureDir(dirname(path));
   await fs.writeFile(path, content, 'utf-8');
+};
+
+/**
+ * 安全的复制
+ */
+export const safeCopyFile = async (
+  src: string,
+  dest: string,
+): Promise<void> => {
+  await fs.ensureDir(dirname(dest));
+  await fs.copyFile(src, dest);
 };
 
 /**
@@ -273,7 +287,7 @@ export const copyWithHardlinks = async (
 
         // 签名文件复制过去
         if (entry.name === SIGNATURE_FILE_NAME) {
-          await fs.copyFile(srcPath, destPath);
+          await safeCopyFile(srcPath, destPath);
           return;
         }
 
