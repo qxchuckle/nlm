@@ -10,8 +10,11 @@ export const en = {
   cmdPushDesc:
     'Push current package to global store and update all projects using it',
   optionForce: 'Force execution, skip hash check',
-  optionPushBuild: 'Run script before push, default script name is build',
+  optionPushBuild:
+    'Select script to run before push from package.json scripts, default build',
   optionPacklist: 'Force use npm-packlist to get file list',
+  pushSelectScript: 'Select script to run before push',
+  pushScriptSkip: 'Skip',
   pushBuildStart: 'Starting build, running script "{script}": {content}',
   pushBuildScriptNotFound:
     'Script "{script}" not found in package.json scripts',
@@ -30,6 +33,19 @@ export const en = {
   pushProjectUpToDate: '{path} is up to date, skipping',
   pushUpdateFailed: 'Failed to update {path}: {error}',
   pushComplete: 'Push complete, updated {count} projects',
+
+  // guide command
+  cmdGuideDesc:
+    'Interactive guide to run other commands, multi-select and set options step by step',
+  guideSelectCommand: 'Select command to run',
+  guideSelectOptionsToSet:
+    'Select options to set (multi-select, empty for defaults)',
+  guideSetValue: 'Set {label}',
+  guideYes: 'Yes',
+  guideNo: 'No',
+  guideInputRequired: 'Required',
+  guideUpdatePackages: 'Select packages to update',
+  guideSearchKeyword: 'Search keyword',
 
   // install command
   cmdInstallDesc: 'Install nlm package to current project',
@@ -116,7 +132,7 @@ export const en = {
     'Current directory is not a valid npm package (missing or invalid package.json)',
   errInvalidPackageName: 'Invalid package name: {name}',
   errUnknownCommand: 'Unknown command: {cmd}',
-  errUnknown: 'Unknown error: {error}',
+  errUnknown: '{error}',
   helpRunCommand: 'Run {cmd} to see available commands',
 
   // runtime

@@ -25,6 +25,8 @@ export interface RuntimeConfig {
   forcedPackageManager?: string;
   /** push 前执行的脚本名，未设置则不执行 */
   buildScript?: string;
+  /** push 时是否列出可执行脚本供选择（-b 无值时为 true） */
+  pushShowScriptList?: boolean;
 }
 
 const defaultConfig: RuntimeConfig = {
@@ -36,6 +38,7 @@ const defaultConfig: RuntimeConfig = {
   nlmConfig: DEFAULT_CONFIG,
   forcedPackageManager: undefined,
   buildScript: undefined,
+  pushShowScriptList: false,
 };
 
 let currentConfig: RuntimeConfig = { ...defaultConfig };

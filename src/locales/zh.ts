@@ -8,8 +8,10 @@ export const zh = {
   // push 命令
   cmdPushDesc: '推送当前包到全局 store，并更新所有使用此包的项目',
   optionForce: '强制执行，跳过 hash 检查',
-  optionPushBuild: 'push 前执行指定脚本，默认为 build',
+  optionPushBuild: 'push 前从可执行脚本中选择，默认为 build',
   optionPacklist: '强制使用 npm-packlist 获取文件列表',
+  pushSelectScript: '选择 push 前要执行的脚本',
+  pushScriptSkip: '不执行',
   pushBuildStart: '开始构建，执行脚本 "{script}": {content}',
   pushBuildScriptNotFound: 'package.json scripts 中不存在 "{script}" 脚本',
   pushBuildFailed: '构建失败: {error}',
@@ -102,6 +104,17 @@ export const zh = {
   configLang: '语言:',
   configSelectLang: '选择语言',
 
+  // guide 命令
+  cmdGuideDesc: '交互式引导执行其它命令，多选参数并逐个设置',
+  guideSelectCommand: '选择要执行的命令',
+  guideSelectOptionsToSet: '选择要设置的项（可多选，空选则用默认）',
+  guideSetValue: '设置 {label}',
+  guideYes: '是',
+  guideNo: '否',
+  guideInputRequired: '不能为空',
+  guideUpdatePackages: '选择要更新的包',
+  guideSearchKeyword: '搜索关键词',
+
   // 通用错误
   errInvalidProject:
     '当前目录不是有效的项目（缺少 package.json 或 node_modules）',
@@ -110,7 +123,7 @@ export const zh = {
     '当前目录不是有效的 npm 包（缺少 package.json 或格式错误）',
   errInvalidPackageName: '无效的包名: {name}',
   errUnknownCommand: '未知命令: {cmd}',
-  errUnknown: '未知错误: {error}',
+  errUnknown: '{error}',
   helpRunCommand: '运行 {cmd} 查看可用命令',
 
   // runtime

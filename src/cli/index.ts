@@ -10,6 +10,7 @@ import { list } from '@/commands/list';
 import { config } from '@/commands/config';
 import { search } from '@/commands/search';
 import { status } from '@/commands/status';
+import { guide } from '@/commands/guide';
 import { NlmError } from '@/types';
 import { initRuntime, updateRuntime, type Locale } from '@/core/runtime';
 import logger from '@/utils/logger';
@@ -98,6 +99,8 @@ const wrapAction = <T extends unknown[]>(
     } catch (error) {
       if (error instanceof NlmError) {
         logger.error(error.message);
+      } else if (error instanceof Error) {
+        logger.error(t('errUnknown', { error: error.message }));
       } else {
         logger.error(t('errUnknown', { error: String(error) }));
       }
@@ -139,6 +142,13 @@ export const nlmCliMain = async (
       });
     });
 
+  // guide 命令（交互式引导）
+  program
+    .command('guide')
+    .alias('g')
+    .description(t('cmdGuideDesc'))
+    .action(wrapAction(async () => guide()));
+
   // push 命令
   program
     .command('push')
@@ -150,11 +160,14 @@ export const nlmCliMain = async (
     .action(
       wrapAction(async (options) => {
         if (options.force) updateRuntime({ force: true });
-        // 仅当显式传入 -b/--build 时执行 build，未传则不执行
-        if (options.build !== undefined)
-          updateRuntime({
-            buildScript: options.build === true ? 'build' : options.build,
-          });
+        // -b 无值：列出可执行脚本选择，默认 build；-b <name>：执行指定脚本；未传 -b：默认执行 build
+        if (options.build === true) {
+          updateRuntime({ pushShowScriptList: true, buildScript: undefined });
+        } else if (options.build === undefined) {
+          updateRuntime({ buildScript: 'build' });
+        } else {
+          updateRuntime({ buildScript: options.build });
+        }
         if (options.packlist) updateRuntime({ usePacklist: true });
         await push();
       }),

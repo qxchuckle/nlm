@@ -300,6 +300,36 @@ export interface MultiSelectChoice<T extends string> {
   suffix?: string;
 }
 
+export interface SingleSelectChoice {
+  name: string;
+  value: string;
+}
+
+/**
+ * 单选 Pro（支持搜索）
+ */
+export const promptSingleSelectPro = async (
+  message: string,
+  choices: SingleSelectChoice[],
+  defaultValue?: string,
+): Promise<string> => {
+  const selected = await selectPro({
+    message,
+    multiple: false,
+    defaultValue,
+    options: async (input?: string) => {
+      const term = (input || '').toLowerCase().trim();
+      if (!term) return choices;
+      return choices.filter(
+        (c) =>
+          c.value.toLowerCase().includes(term) ||
+          c.name.toLowerCase().includes(term),
+      );
+    },
+  });
+  return (selected ?? '') as string;
+};
+
 /**
  * 多选Pro
  */

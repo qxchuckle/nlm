@@ -1,3 +1,4 @@
+import chalk from 'chalk';
 import { NlmError } from '../types';
 import { readPackageManifest } from '../utils/package';
 import { copyPackageToStore } from '../services/copy';
@@ -8,13 +9,16 @@ import { getRuntime, updateRuntime } from '../core/runtime';
 import { updateSinglePackage } from './update';
 import logger from '../utils/logger';
 import { t } from '../utils/i18n';
+import { promptSingleSelectPro } from '../utils/prompt';
 
 /**
  * 执行 push 命令
  * 将当前包推送到全局 store，并更新所有使用此包的项目
  */
+const SCRIPT_SKIP_VALUE = '__none__';
+
 export const push = async (): Promise<void> => {
-  const { workingDir, force, buildScript } = getRuntime();
+  const { workingDir, force, buildScript, pushShowScriptList } = getRuntime();
   const startTime = Date.now();
 
   // 读取当前包的 package.json
@@ -23,16 +27,45 @@ export const push = async (): Promise<void> => {
     throw new NlmError(t('errInvalidPackage'));
   }
 
-  // 若指定了 --build/-b，先检查 scripts 并执行对应脚本
-  if (buildScript) {
-    if (!pkg.scripts || !(buildScript in pkg.scripts)) {
-      throw new NlmError(t('pushBuildScriptNotFound', { script: buildScript }));
+  let scriptToRun = buildScript;
+  if (
+    pushShowScriptList &&
+    pkg.scripts &&
+    Object.keys(pkg.scripts).length > 0
+  ) {
+    const scriptNames = Object.keys(pkg.scripts);
+    const choices = [
+      { name: t('pushScriptSkip'), value: SCRIPT_SKIP_VALUE },
+      ...scriptNames.map((name) => ({
+        name: `${name}  ${chalk.gray(pkg.scripts![name])}`,
+        value: name,
+      })),
+    ];
+    const defaultScript = scriptNames.includes('build')
+      ? 'build'
+      : SCRIPT_SKIP_VALUE;
+    const chosen =
+      process.stdin.isTTY && process.stdout.isTTY
+        ? await promptSingleSelectPro(
+            t('pushSelectScript'),
+            choices,
+            defaultScript,
+          )
+        : defaultScript;
+    scriptToRun = chosen === SCRIPT_SKIP_VALUE ? undefined : chosen;
+    updateRuntime({ buildScript: scriptToRun });
+  }
+
+  // 若需执行脚本，先检查并执行
+  if (scriptToRun) {
+    if (!pkg.scripts || !(scriptToRun in pkg.scripts)) {
+      throw new NlmError(t('pushBuildScriptNotFound', { script: scriptToRun }));
     }
-    const scriptContent = pkg.scripts![buildScript];
+    const scriptContent = pkg.scripts![scriptToRun];
     logger.info(
-      t('pushBuildStart', { script: buildScript, content: scriptContent }),
+      t('pushBuildStart', { script: scriptToRun, content: scriptContent }),
     );
-    await runPackageManagerScript(workingDir, buildScript);
+    await runPackageManagerScript(workingDir, scriptToRun);
   }
 
   const { name, version } = pkg;
