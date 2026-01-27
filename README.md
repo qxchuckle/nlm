@@ -132,6 +132,24 @@ nlm status
 nlm st
 ```
 
+### wizard
+
+交互式向导，选择命令与参数并执行
+
+```bash
+nlm wizard
+nlm w
+```
+
+### help
+
+查看命令帮助
+
+```bash
+nlm help <command>
+nlm h
+```
+
 ### Common Options
 
 ```bash
