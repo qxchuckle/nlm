@@ -145,7 +145,7 @@ export const nlmCliMain = async (
   // guide 命令（交互式引导）
   program
     .command('guide')
-    .alias('g')
+    .alias('gui')
     .description(t('cmdGuideDesc'))
     .action(wrapAction(async () => guide(program)));
 
