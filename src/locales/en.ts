@@ -10,7 +10,12 @@ export const en = {
   cmdPushDesc:
     'Push current package to global store and update all projects using it',
   optionForce: 'Force execution, skip hash check',
+  optionPushBuild: 'Run script before push, default script name is build',
   optionPacklist: 'Force use npm-packlist to get file list',
+  pushBuildStart: 'Starting build, running script "{script}": {content}',
+  pushBuildScriptNotFound:
+    'Script "{script}" not found in package.json scripts',
+  pushBuildFailed: 'Build failed: {error}',
   pushToStore: 'Pushing {pkg} to store...',
   pushedToStore: 'Pushed {pkg} to store',
   pushFailed: 'Push failed: {error}',

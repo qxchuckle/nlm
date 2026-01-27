@@ -23,6 +23,8 @@ export interface RuntimeConfig {
   nlmConfig: NlmConfig;
   /** 命令行强制指定的包管理器 */
   forcedPackageManager?: string;
+  /** push 前执行的脚本名，未设置则不执行 */
+  buildScript?: string;
 }
 
 const defaultConfig: RuntimeConfig = {
@@ -33,6 +35,7 @@ const defaultConfig: RuntimeConfig = {
   usePacklist: false,
   nlmConfig: DEFAULT_CONFIG,
   forcedPackageManager: undefined,
+  buildScript: undefined,
 };
 
 let currentConfig: RuntimeConfig = { ...defaultConfig };

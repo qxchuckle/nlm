@@ -1,6 +1,7 @@
 import { NlmError } from '../types';
 import { readPackageManifest } from '../utils/package';
 import { copyPackageToStore } from '../services/copy';
+import { runPackageManagerScript } from '../services/dependency';
 import { setPackageTarget, getPackageUsages } from '../core/store';
 import { getLockfilePackage } from '../core/lockfile';
 import { getRuntime, updateRuntime } from '../core/runtime';
@@ -13,13 +14,25 @@ import { t } from '../utils/i18n';
  * 将当前包推送到全局 store，并更新所有使用此包的项目
  */
 export const push = async (): Promise<void> => {
-  const { workingDir, force } = getRuntime();
+  const { workingDir, force, buildScript } = getRuntime();
   const startTime = Date.now();
 
   // 读取当前包的 package.json
   const pkg = readPackageManifest(workingDir);
   if (!pkg) {
     throw new NlmError(t('errInvalidPackage'));
+  }
+
+  // 若指定了 --build/-b，先检查 scripts 并执行对应脚本
+  if (buildScript) {
+    if (!pkg.scripts || !(buildScript in pkg.scripts)) {
+      throw new NlmError(t('pushBuildScriptNotFound', { script: buildScript }));
+    }
+    const scriptContent = pkg.scripts![buildScript];
+    logger.info(
+      t('pushBuildStart', { script: buildScript, content: scriptContent }),
+    );
+    await runPackageManagerScript(workingDir, buildScript);
   }
 
   const { name, version } = pkg;

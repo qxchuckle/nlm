@@ -98,9 +98,7 @@ export const handleDependencyConflicts = async (
 
   ensureDirSync(nlmPkgDir);
 
-  const pm =
-    getRuntime().forcedPackageManager ||
-    getConfiguredPackageManager(workingDir);
+  const pm = getActualPackageManager(workingDir);
 
   // 收集所有需要安装的依赖
   const depSpecs = needInstall.map(
@@ -170,15 +168,43 @@ const runInstallCommand = (
 };
 
 /**
+ * 获取实际需要使用的包管理器
+ */
+const getActualPackageManager = (workingDir: string): string => {
+  return (
+    getRuntime().forcedPackageManager || getConfiguredPackageManager(workingDir)
+  );
+};
+
+/**
+ * 执行 package.json scripts 中的脚本
+ * 使用 getActualPackageManager 决定的包管理器执行 run <scriptName>
+ * 命令失败时抛出 NlmError
+ */
+export const runPackageManagerScript = async (
+  workingDir: string,
+  scriptName: string,
+): Promise<void> => {
+  const pm = getActualPackageManager(workingDir);
+  try {
+    execSync(`${pm} run ${scriptName}`, {
+      cwd: workingDir,
+      stdio: 'inherit',
+      encoding: 'utf-8',
+    });
+  } catch (error) {
+    throw new NlmError(t('pushBuildFailed', { error: String(error) }));
+  }
+};
+
+/**
  * 执行包管理器安装命令，安装指定的包
  */
 export const runInstall = async (
   workingDir: string,
   packageNames: string[],
 ): Promise<void> => {
-  const pm =
-    getRuntime().forcedPackageManager ||
-    getConfiguredPackageManager(workingDir);
+  const pm = getActualPackageManager(workingDir);
   await runInstallCommand(pm, packageNames, workingDir);
 };
 

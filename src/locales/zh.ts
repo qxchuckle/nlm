@@ -8,7 +8,11 @@ export const zh = {
   // push 命令
   cmdPushDesc: '推送当前包到全局 store，并更新所有使用此包的项目',
   optionForce: '强制执行，跳过 hash 检查',
+  optionPushBuild: 'push 前执行指定脚本，默认为 build',
   optionPacklist: '强制使用 npm-packlist 获取文件列表',
+  pushBuildStart: '开始构建，执行脚本 "{script}": {content}',
+  pushBuildScriptNotFound: 'package.json scripts 中不存在 "{script}" 脚本',
+  pushBuildFailed: '构建失败: {error}',
   pushToStore: '推送 {pkg} 到 store...',
   pushedToStore: '已推送 {pkg} 到 store',
   pushFailed: '推送失败: {error}',

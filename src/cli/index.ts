@@ -93,6 +93,7 @@ const wrapAction = <T extends unknown[]>(
 ): ((...args: T) => Promise<void>) => {
   return async (...args: T) => {
     try {
+      logger.debug(JSON.stringify(args[0], null, 2));
       await fn(...args);
     } catch (error) {
       if (error instanceof NlmError) {
@@ -144,10 +145,16 @@ export const nlmCliMain = async (
     .alias('p')
     .description(t('cmdPushDesc'))
     .option('-f, --force', t('optionForce'))
+    .option('-b, --build [scriptName]', t('optionPushBuild'))
     .option('--packlist', t('optionPacklist'))
     .action(
       wrapAction(async (options) => {
         if (options.force) updateRuntime({ force: true });
+        // 仅当显式传入 -b/--build 时执行 build，未传则不执行
+        if (options.build !== undefined)
+          updateRuntime({
+            buildScript: options.build === true ? 'build' : options.build,
+          });
         if (options.packlist) updateRuntime({ usePacklist: true });
         await push();
       }),
