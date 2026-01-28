@@ -21,16 +21,13 @@
 npm i @qcqx/nlm -g
 ```
 
-## Config
+快速开始
 
-- 项目级配置文件 `<project>/.nlm/nlm.config.json`
-- 全局配置文件 `~/.nlm/nlm.config.json`
-
-```json
-{
-  // 指定使用的包管理器，用于需要时安装部分依赖，默认 npm
-  "packageManager": "npm"
-}
+```bash
+# 交互式向导，选择命令与参数并执行
+nlm w
+# 或者直接执行命令，查看帮助列出所有命令
+nlm help
 ```
 
 ## Usage
@@ -45,6 +42,8 @@ nlm push [options]
 nlm p
 
 Options:
+  -b, --build [scriptName] 推送前执行指定脚本，未指定则交互式选择
+  -v, --version <version> 指定推送版本（覆盖 package.json），如 latest 或 1.0.0
   -f, --force 强制推送，跳过 hash 检查
   --packlist 强制使用 npm-packlist 获取文件列表，默认使用 tinyglobby 快速方案，特殊情况自动降级
 ```
@@ -88,7 +87,7 @@ nlm list [options]
 nlm ls
 
 Options:
-  -s, --store 列出全局 store 中的所有包
+  -g, --global 列出全局 store 中的所有包
 ```
 
 ### uninstall
@@ -114,6 +113,16 @@ Options:
   -g, --global 配置全局设置 (默认是项目级配置)
 ```
 
+- 项目级配置文件 `<project>/.nlm/nlm.config.json`
+- 全局配置文件 `~/.nlm/nlm.config.json`
+
+```json
+{
+  "packageManager": "npm", // 指定使用的包管理器，用于需要时安装部分依赖，默认 npm
+  "lang": "auto" // 语言设置，auto 表示自动识别，zh 中文，en 英文，默认 auto
+}
+```
+
 ### search
 
 搜索全局 store 中的包
@@ -121,15 +130,6 @@ Options:
 ```bash
 nlm search <keyword>
 nlm s
-```
-
-### status
-
-查看当前项目中所有 nlm 包的状态
-
-```bash
-nlm status
-nlm st
 ```
 
 ### wizard
@@ -147,7 +147,6 @@ nlm w
 
 ```bash
 nlm help <command>
-nlm h
 ```
 
 ### Common Options

@@ -12,6 +12,7 @@ import {
   pathExistsSync,
   readdirSync,
 } from '../utils/file';
+import { compareVersions, isValidVersion } from '../utils/version';
 
 /**
  * 读取全局 store 配置
@@ -152,7 +153,9 @@ export const getPackageVersionsInStore = (packageName: string): string[] => {
   if (!pathExistsSync(packageDir)) {
     return [];
   }
-  return readdirSync(packageDir);
+  return readdirSync(packageDir)
+    .filter((v) => isValidVersion(v))
+    .sort((a, b) => compareVersions(a, b));
 };
 
 /**

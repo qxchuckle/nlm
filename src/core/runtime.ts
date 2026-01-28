@@ -27,6 +27,8 @@ export interface RuntimeConfig {
   buildScript?: string;
   /** push 时是否列出可执行脚本供选择（-b 无值时为 true） */
   pushShowScriptList?: boolean;
+  /** push 时覆盖的版本（覆盖 package.json 中的 version），如 "latest" 或 "1.0.0" */
+  pushVersion?: string;
 }
 
 const defaultConfig: RuntimeConfig = {
@@ -39,6 +41,7 @@ const defaultConfig: RuntimeConfig = {
   forcedPackageManager: undefined,
   buildScript: undefined,
   pushShowScriptList: false,
+  pushVersion: undefined,
 };
 
 let currentConfig: RuntimeConfig = { ...defaultConfig };

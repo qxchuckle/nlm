@@ -27,7 +27,6 @@ export { uninstall } from './commands/uninstall';
 export { list } from './commands/list';
 export { config } from './commands/config';
 export { search } from './commands/search';
-export { status } from './commands/status';
 
 // 导出工具函数
 export * from './utils/logger';

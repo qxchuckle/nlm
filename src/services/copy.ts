@@ -14,6 +14,8 @@ import {
   pathExistsSync,
   copyWithHardlinks,
   extractTopLevelPaths,
+  readJsonSync,
+  writeJsonSync,
 } from '../utils/file';
 import { getRuntime } from '../core/runtime';
 import logger from '../utils/logger';
@@ -49,7 +51,7 @@ const copyFilesByTopLevel = async (
  * 复制包到全局 store
  */
 export const copyPackageToStore = async (): Promise<CopyResult> => {
-  const { workingDir, force } = getRuntime();
+  const { workingDir, force, pushVersion } = getRuntime();
   const pkg = readPackageManifest(workingDir);
 
   if (!pkg) {
@@ -57,7 +59,8 @@ export const copyPackageToStore = async (): Promise<CopyResult> => {
   }
 
   const { name, version } = pkg;
-  const storeDir = getPackageStoreDir(name, version);
+  const effectiveVersion = pushVersion ?? version;
+  const storeDir = getPackageStoreDir(name, effectiveVersion);
 
   // 获取要发布的文件列表
   const files = await getPackFiles(workingDir);
@@ -72,10 +75,12 @@ export const copyPackageToStore = async (): Promise<CopyResult> => {
   if (!force && pathExistsSync(storeDir)) {
     const existingSignature = readSignatureFile(storeDir);
     logger.debug(
-      `${logger.pkg(name, version)} signature: exists=${existingSignature} current=${newSignature}`,
+      `${logger.pkg(name, effectiveVersion)} signature: exists=${existingSignature} current=${newSignature}`,
     );
     if (existingSignature === newSignature) {
-      logger.info(t('copyNoChange', { pkg: logger.pkg(name, version) }));
+      logger.info(
+        t('copyNoChange', { pkg: logger.pkg(name, effectiveVersion) }),
+      );
       return {
         success: true,
         signature: newSignature,
@@ -86,10 +91,22 @@ export const copyPackageToStore = async (): Promise<CopyResult> => {
 
   await copyFilesByTopLevel(files, workingDir, storeDir);
 
+  // 若指定了 pushVersion，覆盖 store 内 package.json 的 version
+  if (pushVersion != null) {
+    const storePkgPath = join(storeDir, 'package.json');
+    const storePkg = readJsonSync<Record<string, unknown>>(storePkgPath);
+    if (storePkg && typeof storePkg === 'object') {
+      storePkg.version = effectiveVersion;
+      writeJsonSync(storePkgPath, storePkg);
+    }
+  }
+
   // 写入签名文件
   writeSignatureFile(storeDir, newSignature);
 
-  logger.success(t('copyCopiedToStore', { pkg: logger.pkg(name, version) }));
+  logger.success(
+    t('copyCopiedToStore', { pkg: logger.pkg(name, effectiveVersion) }),
+  );
 
   return {
     success: true,

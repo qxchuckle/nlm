@@ -3,9 +3,13 @@ import input from '@inquirer/input';
 import { select as selectPro } from 'inquirer-select-pro';
 import chalk from 'chalk';
 import { getRuntime, updateRuntime } from '../core/runtime';
-import { getAllPackagesInStore } from '../core/store';
+import {
+  getAllPackagesInStore,
+  getPackageVersionsInStore,
+} from '../core/store';
 import { getLockfilePackageNames, lockfileExists } from '../core/lockfile';
 import { readPackageManifest } from '../utils/package';
+import { isValidVersion, isValidVersionRange } from '../utils/version';
 import { push } from './push';
 import { install } from './install';
 import { update } from './update';
@@ -13,10 +17,11 @@ import { uninstall } from './uninstall';
 import { list } from './list';
 import { config } from './config';
 import { search } from './search';
-import { status } from './status';
 import { t, type Messages } from '../utils/i18n';
 import { promptMultiSelectPro, promptSingleSelectPro } from '../utils/prompt';
 import type { UninstallOptions } from './uninstall';
+
+const PUSH_VERSION_CUSTOM_VALUE = '__custom__';
 
 /** 引导项类型 */
 type WizardItemType =
@@ -25,6 +30,7 @@ type WizardItemType =
   | 'packages-store'
   | 'packages-lockfile'
   | 'package-scripts'
+  | 'push-version'
   | 'input';
 
 /** 单个可配置项 */
@@ -49,6 +55,7 @@ const WIZARD_COMMANDS: WizardCommandMeta[] = [
     descriptionKey: 'cmdPushDesc',
     items: [
       { id: 'build', labelKey: 'optionPushBuild', type: 'package-scripts' },
+      { id: 'version', labelKey: 'optionPushVersion', type: 'push-version' },
       { id: 'force', labelKey: 'optionForce', type: 'boolean' },
       { id: 'packlist', labelKey: 'optionPacklist', type: 'boolean' },
       {
@@ -110,7 +117,7 @@ const WIZARD_COMMANDS: WizardCommandMeta[] = [
   {
     id: 'list',
     descriptionKey: 'cmdListDesc',
-    items: [{ id: 'store', labelKey: 'optionStore', type: 'boolean' }],
+    items: [{ id: 'global', labelKey: 'optionListGlobal', type: 'boolean' }],
   },
   {
     id: 'config',
@@ -122,7 +129,6 @@ const WIZARD_COMMANDS: WizardCommandMeta[] = [
     descriptionKey: 'cmdSearchDesc',
     items: [{ id: 'keyword', labelKey: 'guideSearchKeyword', type: 'input' }],
   },
-  { id: 'status', descriptionKey: 'cmdStatusDesc', items: [] },
 ];
 
 /** 提示布尔项 */
@@ -157,7 +163,9 @@ const promptItemValue = async (
 ): Promise<string | string[] | boolean> => {
   switch (item.type) {
     case 'boolean':
-      return promptBoolean(item.labelKey);
+      // return promptBoolean(item.labelKey);
+      // boolean类型的参数已在「选择要设置的项」里选中，视为开启，无需二次 Yes/No 确认
+      return true;
     case 'string':
       return await promptString(item.labelKey, 'build');
     case 'package-scripts': {
@@ -177,6 +185,51 @@ const promptItemValue = async (
         choices,
         defaultScript,
       );
+    }
+    case 'push-version': {
+      const pkg = readPackageManifest(workingDir);
+      const currentVer = pkg?.version ?? '0.0.0';
+      const storeVersions = pkg?.name
+        ? getPackageVersionsInStore(pkg.name)
+        : [];
+      const latestInStore =
+        storeVersions.length > 0
+          ? storeVersions[storeVersions.length - 1]
+          : null;
+      const choices: { name: string; value: string }[] = [
+        {
+          name: t('pushVersionCurrent', { version: currentVer }),
+          value: currentVer,
+        },
+        { name: t('pushVersionCustom'), value: PUSH_VERSION_CUSTOM_VALUE },
+      ];
+      if (latestInStore != null) {
+        const latestDesc = t('pushVersionLatestDesc', {
+          version: latestInStore,
+        });
+        choices.unshift({
+          name: `${t('pushVersionLatest')}  ${chalk.gray(latestDesc)}`,
+          value: 'latest',
+        });
+      }
+      const chosen = await promptSingleSelectPro(
+        t('pushVersionPrompt'),
+        choices,
+        currentVer,
+      );
+      if (chosen === PUSH_VERSION_CUSTOM_VALUE) {
+        return await input({
+          message: t('pushVersionInput'),
+          validate: (v) => {
+            const s = v != null ? String(v).trim() : '';
+            if (!s) return t('guideInputRequired');
+            if (s === 'latest' || isValidVersion(s) || isValidVersionRange(s))
+              return true;
+            return t('pushVersionInvalid', { version: s });
+          },
+        });
+      }
+      return chosen;
     }
     case 'input':
       return await input({
@@ -217,6 +270,10 @@ const runCommand = async (
           typeof v.build === 'string' && v.build.length > 0
             ? v.build
             : undefined,
+        pushVersion:
+          typeof v.version === 'string' && v.version.length > 0
+            ? v.version
+            : undefined,
         usePacklist: v.packlist === true,
         forcedPackageManager:
           typeof v.packageManager === 'string' && v.packageManager.trim()
@@ -251,16 +308,13 @@ const runCommand = async (
       } as UninstallOptions);
       break;
     case 'list':
-      await list(v.store === true);
+      await list(v.global === true);
       break;
     case 'config':
       await config(v.global === true);
       break;
     case 'search':
       await search(typeof v.keyword === 'string' ? v.keyword : '');
-      break;
-    case 'status':
-      await status();
       break;
     default:
       throw new Error(`Unknown command: ${commandId}`);

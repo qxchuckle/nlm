@@ -12,7 +12,22 @@ export const en = {
   optionForce: 'Force execution, skip hash check',
   optionPushBuild:
     'Select script to run before push from package.json scripts, default build',
+  optionPushVersion:
+    'Override package.json version for push (e.g. latest or 1.0.0)',
   optionPacklist: 'Force use npm-packlist to get file list',
+  pushVersionLatest: 'latest',
+  pushVersionLatestDesc:
+    'store latest {version} for this package, push to this version',
+  pushVersionLatestNone: '(none)',
+  pushVersionLatestNotAvailable:
+    'No versions in store for this package, cannot use latest, please push first or choose another version',
+  pushVersionCurrent: '{version} (current)',
+  pushVersionCustom: 'Custom',
+  pushVersionPrompt: 'Select push version',
+  pushVersionInput: 'Enter version number',
+  pushVersionInvalid:
+    'Invalid version "{version}", must be "latest", exact (e.g. 1.0.0) or range (e.g. ^1.0.0)',
+  pushVersionNoMatch: 'No version in store satisfies "{range}"',
   pushSelectScript: 'Select script to run before push',
   pushScriptSkip: 'Skip',
   pushBuildStart: 'Starting build, running script "{script}": {content}',
@@ -39,8 +54,7 @@ export const en = {
     'Interactive wizard to select command and set options step by step',
   guideSelectCommand: 'Select command to run',
   guideHelpDesc: 'View nlm command help',
-  guideSelectOptionsToSet:
-    'Select options to set (multi-select, empty for defaults)',
+  guideSelectOptionsToSet: 'Select command parameters',
   guideSetValue: 'Set {label}',
   guideYes: 'Yes',
   guideNo: 'No',
@@ -96,8 +110,8 @@ export const en = {
   updateSingle: 'Updating {pkg}',
 
   // list command
-  cmdListDesc: 'List installed nlm packages',
-  optionStore: 'List all packages in global store',
+  cmdListDesc: 'List installed nlm packages and status (-g for global store)',
+  optionListGlobal: 'List all packages in global store',
   listNoPackages: 'No nlm packages installed in current project',
   listInstalled: 'Installed nlm packages:',
   listTotal: 'Total {count} packages',

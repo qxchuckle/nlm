@@ -9,7 +9,6 @@ import { uninstall } from '@/commands/uninstall';
 import { list } from '@/commands/list';
 import { config } from '@/commands/config';
 import { search } from '@/commands/search';
-import { status } from '@/commands/status';
 import { wizard } from '@/commands/wizard';
 import { NlmError } from '@/types';
 import { initRuntime, updateRuntime, type Locale } from '@/core/runtime';
@@ -156,18 +155,19 @@ export const nlmCliMain = async (
     .description(t('cmdPushDesc'))
     .option('-f, --force', t('optionForce'))
     .option('-b, --build [scriptName]', t('optionPushBuild'))
+    .option('-v, --version <version>', t('optionPushVersion'))
     .option('--packlist', t('optionPacklist'))
     .action(
       wrapAction(async (options) => {
         if (options.force) updateRuntime({ force: true });
-        // -b 无值：列出可执行脚本选择，默认 build；-b <name>：执行指定脚本；未传 -b：默认执行 build
+        // -b 无值：列出可执行脚本选择，默认 build；-b <name>：执行指定脚本；未传 -b：不执行脚本
         if (options.build === true) {
           updateRuntime({ pushShowScriptList: true, buildScript: undefined });
-        } else if (options.build === undefined) {
-          updateRuntime({ buildScript: 'build' });
-        } else {
+        } else if (typeof options.build === 'string') {
           updateRuntime({ buildScript: options.build });
         }
+        if (options.version != null)
+          updateRuntime({ pushVersion: options.version });
         if (options.packlist) updateRuntime({ usePacklist: true });
         await push();
       }),
@@ -211,13 +211,12 @@ export const nlmCliMain = async (
       ),
     );
 
-  // ls 命令
   program
     .command('list')
     .alias('ls')
     .description(t('cmdListDesc'))
-    .option('-s, --store', t('optionStore'))
-    .action(wrapAction(async (options) => list(options.store ?? false)));
+    .option('-g, --global', t('optionListGlobal'))
+    .action(wrapAction(async (options) => list(options.global ?? false)));
 
   // config 命令
   program
@@ -233,13 +232,6 @@ export const nlmCliMain = async (
     .alias('s')
     .description(t('cmdSearchDesc'))
     .action(wrapAction(async (keyword: string) => search(keyword)));
-
-  // status 命令
-  program
-    .command('status')
-    .alias('st')
-    .description(t('cmdStatusDesc'))
-    .action(wrapAction(async () => status()));
 
   // 处理未知命令
   program.on('command:*', (operands) => {

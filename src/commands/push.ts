@@ -3,13 +3,24 @@ import { NlmError } from '../types';
 import { readPackageManifest } from '../utils/package';
 import { copyPackageToStore } from '../services/copy';
 import { runPackageManagerScript } from '../services/dependency';
-import { setPackageTarget, getPackageUsages } from '../core/store';
+import {
+  setPackageTarget,
+  getPackageUsages,
+  getPackageVersionsInStore,
+} from '../core/store';
 import { getLockfilePackage } from '../core/lockfile';
 import { getRuntime, updateRuntime } from '../core/runtime';
 import { updateSinglePackage } from './update';
 import logger from '../utils/logger';
 import { t } from '../utils/i18n';
 import { promptSingleSelectPro } from '../utils/prompt';
+import { ensureGitignoreHasNlm } from '../utils/gitignore';
+import {
+  isValidVersion,
+  isValidVersionRange,
+  compareVersions,
+  resolveVersion,
+} from '../utils/version';
 
 /**
  * 执行 push 命令
@@ -18,13 +29,26 @@ import { promptSingleSelectPro } from '../utils/prompt';
 const SCRIPT_SKIP_VALUE = '__none__';
 
 export const push = async (): Promise<void> => {
-  const { workingDir, force, buildScript, pushShowScriptList } = getRuntime();
+  const { workingDir, force, buildScript, pushShowScriptList, pushVersion } =
+    getRuntime();
   const startTime = Date.now();
 
   // 读取当前包的 package.json
   const pkg = readPackageManifest(workingDir);
   if (!pkg) {
     throw new NlmError(t('errInvalidPackage'));
+  }
+
+  // 确保当前目录 .gitignore 中包含 .nlm
+  ensureGitignoreHasNlm(workingDir);
+
+  if (
+    pushVersion != null &&
+    pushVersion !== 'latest' &&
+    !isValidVersion(pushVersion) &&
+    !isValidVersionRange(pushVersion)
+  ) {
+    throw new NlmError(t('pushVersionInvalid', { version: pushVersion }));
   }
 
   let scriptToRun = buildScript;
@@ -69,16 +93,41 @@ export const push = async (): Promise<void> => {
   }
 
   const { name, version } = pkg;
+  const storeVersions = getPackageVersionsInStore(name).sort((a, b) =>
+    compareVersions(a, b),
+  );
+  // 解析推送版本：latest → store 最新；精确版本 → 直接使用；范围(^1.0.0 等) → 从 store 取满足条件的最高版本
+  let effectiveVersion: string;
+  if (pushVersion === 'latest') {
+    if (storeVersions.length === 0) {
+      throw new NlmError(t('pushVersionLatestNotAvailable'));
+    }
+    effectiveVersion = storeVersions[storeVersions.length - 1];
+    updateRuntime({ pushVersion: effectiveVersion });
+  } else if (
+    pushVersion != null &&
+    isValidVersionRange(pushVersion) &&
+    !isValidVersion(pushVersion)
+  ) {
+    const resolved = resolveVersion(pushVersion, storeVersions);
+    if (!resolved) {
+      throw new NlmError(t('pushVersionNoMatch', { range: pushVersion }));
+    }
+    effectiveVersion = resolved.version;
+    updateRuntime({ pushVersion: effectiveVersion });
+  } else {
+    effectiveVersion = pushVersion ?? version;
+  }
 
   // 复制包到 store
   let copyResult;
   const pushStartTime = Date.now();
   try {
-    logger.spin(t('pushToStore', { pkg: logger.pkg(name, version) }));
+    logger.spin(t('pushToStore', { pkg: logger.pkg(name, effectiveVersion) }));
     copyResult = await copyPackageToStore();
     logger.spinSuccess(
       t('pushedToStore', {
-        pkg: `${logger.pkg(name, version)} ${logger.duration(pushStartTime)}`,
+        pkg: `${logger.pkg(name, effectiveVersion)} ${logger.duration(pushStartTime)}`,
       }),
     );
   } catch (error) {
