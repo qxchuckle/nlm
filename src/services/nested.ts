@@ -132,7 +132,7 @@ export const replaceNestedPackages = async (
 
   // logger.debug(t('nestedDebugPaths', { paths: nestedPaths.join('\n') }));
 
-  logger.debug(
+  logger.info(
     t('nestedFoundIndirectDeps', {
       count: nestedPaths.length,
       pkg: logger.pkg(packageName),
