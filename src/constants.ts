@@ -122,7 +122,7 @@ export const CONFLICT_DEPS_DIR = '.conflict-deps';
 /**
  * 冲突依赖包装包在 app node_modules 中的名称前缀
  */
-export const CONFLICT_DEPS_PKG_PREFIX = '.nlm-cd-';
+export const CONFLICT_DEPS_PKG_PREFIX = 'nlm-cd-';
 
 /**
  * 获取项目 .nlm/.conflict-deps 目录路径
@@ -143,10 +143,10 @@ export const getConflictDepsPackageDir = (
 
 /**
  * 将包名转换为合法的冲突依赖包装包名称
- * scoped 包 @scope/name → .nlm-cd-scope+name
+ * scoped 包 @scope/name → nlm-cd-scope-name
  */
 export const getConflictDepsPackageName = (packageName: string): string => {
-  return `${CONFLICT_DEPS_PKG_PREFIX}${packageName.replace('@', '').replace('/', '+')}`;
+  return `${CONFLICT_DEPS_PKG_PREFIX}${packageName.replace('@', '').replace('/', '-')}`;
 };
 
 /**
