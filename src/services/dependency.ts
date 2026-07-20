@@ -30,6 +30,18 @@ import {
 import logger from '../utils/logger';
 import { t } from '../utils/i18n';
 
+/** 生成 0-99 的随机整数 */
+const randInt = (): number => Math.floor(Math.random() * 100);
+
+/** 生成随机版本号，确保与上一次不同 */
+const genRandomVersion = (prevVersion?: string): string => {
+  let ver: string;
+  do {
+    ver = `${randInt()}.${randInt()}.${randInt()}`;
+  } while (ver === prevVersion);
+  return ver;
+};
+
 /**
  * 获取冲突依赖的实际 node_modules 路径
  * 优先 .conflict-deps/<pkg>/node_modules（npm symlink 场景）
@@ -186,9 +198,11 @@ export const handleDependencyConflicts = async (
 
   // 创建包装包 package.json（声明所有冲突依赖，而非仅 needInstall，避免 npm prune 已安装的）
   ensureDirSync(conflictPkgDir);
+  // 读取上一次的版本号，确保新生成的不同
+  const prevManifest = readPackageManifest(conflictPkgDir);
   const conflictPkgManifest = {
     name: getConflictDepsPackageName(packageName),
-    version: '1.0.0',
+    version: genRandomVersion(prevManifest?.version),
     private: true,
     dependencies: Object.fromEntries(
       conflicts.map((c) => [c.name, c.requiredVersion]),
