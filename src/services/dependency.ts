@@ -1,5 +1,6 @@
-import { spawn, execSync } from 'child_process';
-import { join } from 'path';
+import { execSync } from 'child_process';
+import { join, relative, dirname } from 'path';
+import fs from 'fs-extra';
 import {
   DependencyConflict,
   Dependencies,
@@ -14,8 +15,18 @@ import {
 } from '../utils/version';
 import { getConfiguredPackageManager } from '../core/config';
 import { getRuntime } from '../core/runtime';
-import { ensureDirSync, pathExistsSync } from '../utils/file';
-import { getProjectNlmDir } from '../constants';
+import {
+  ensureDirSync,
+  pathExistsSync,
+  writeJsonSync,
+  removeSync,
+} from '../utils/file';
+import {
+  getProjectNlmDir,
+  getConflictDepsPackageDir,
+  getConflictDepsPackageName,
+  getConflictDepsNodeModulesPath,
+} from '../constants';
 import logger from '../utils/logger';
 import { t } from '../utils/i18n';
 
@@ -86,8 +97,13 @@ export const detectDependencyConflicts = (
 
 /**
  * 处理依赖冲突
- * 在 .nlm/包名/node_modules 中安装冲突版本的依赖
- * 会先检查已安装的版本是否满足要求，避免重复安装
+ * 通过包装包在 app 目录安装冲突依赖，利用 npm 原生嵌套+去重机制复用 app 已有依赖
+ *
+ * 流程：
+ * 1. 创建 .nlm/.conflict-deps/<pkg>/package.json（声明冲突依赖）
+ * 2. 在 app 目录执行 npm install file:.nlm/.conflict-deps/<pkg> --no-save
+ * 3. npm 将冲突版本嵌套到 .nlm/.conflict-deps/<pkg>/node_modules/
+ * 4. 创建 symlink：.nlm/<pkg>/node_modules/<dep> → ../../.conflict-deps/<pkg>/node_modules/<dep>
  */
 export const handleDependencyConflicts = async (
   packageName: string,
@@ -98,13 +114,16 @@ export const handleDependencyConflicts = async (
     return;
   }
 
-  // nlm 包目录
-  const nlmPkgDir = join(getProjectNlmDir(workingDir), packageName);
-  // node_modules 目录（用于检查已安装的依赖）
-  const nodeModulesDir = join(nlmPkgDir, 'node_modules');
+  // 冲突依赖包装包目录
+  const conflictPkgDir = getConflictDepsPackageDir(workingDir, packageName);
+  // 包装包的 node_modules（冲突依赖实际安装位置）
+  const conflictNodeModules = join(conflictPkgDir, 'node_modules');
 
   // 过滤出真正需要安装的依赖（已安装的版本不满足要求）
-  const needInstall = filterConflictsNeedInstall(conflicts, nodeModulesDir);
+  const needInstall = filterConflictsNeedInstall(
+    conflicts,
+    conflictNodeModules,
+  );
 
   logger.warn(
     t('depConflictDetected', {
@@ -123,33 +142,57 @@ export const handleDependencyConflicts = async (
     );
   });
 
-  ensureDirSync(nlmPkgDir);
+  if (needInstall.length === 0) {
+    // 所有冲突依赖已安装，检查 app node_modules 中的包装包 symlink 是否存在
+    // 如果不存在（被 app 的 npm install 清掉），需要重新安装以恢复 hoisted 传递依赖
+    const appSymlinkPath = getConflictDepsNodeModulesPath(
+      workingDir,
+      packageName,
+    );
+    if (pathExistsSync(appSymlinkPath)) {
+      // symlink 存在，只需确保 nlm 包的 symlink 存在
+      await createConflictDepSymlinks(packageName, conflicts, workingDir);
+      return;
+    }
+    // symlink 不存在，需要重新安装（下方逻辑）
+  }
+
+  // 创建包装包 package.json（声明所有冲突依赖，而非仅 needInstall，避免 npm prune 已安装的）
+  ensureDirSync(conflictPkgDir);
+  const conflictPkgManifest = {
+    name: getConflictDepsPackageName(packageName),
+    private: true,
+    dependencies: Object.fromEntries(
+      conflicts.map((c) => [c.name, c.requiredVersion]),
+    ),
+  };
+  writeJsonSync(join(conflictPkgDir, 'package.json'), conflictPkgManifest);
 
   const pm = getActualPackageManager(workingDir);
 
-  // 收集所有需要安装的依赖
-  const depSpecs = needInstall.map(
-    (conflict) => `${conflict.name}@${conflict.requiredVersion}`,
-  );
-
+  // 在 app 目录执行安装（利用 npm 原生去重）
+  const relativePath = relative(workingDir, conflictPkgDir);
   try {
-    await runInstallCommand(pm, depSpecs, nlmPkgDir);
+    await runConflictDepsInstall(pm, relativePath, workingDir);
   } catch (error) {
     logger.error(t('depInstallFailed'));
     throw error;
   }
+
+  // 创建 symlink：.nlm/<pkg>/node_modules/<dep> → conflict-deps 中的实际位置
+  await createConflictDepSymlinks(packageName, conflicts, workingDir);
 };
 
 /**
  * 过滤出真正需要安装的冲突依赖
- * 检查 nlmPackageDir/node_modules 中已安装的版本是否满足要求
+ * 检查 .nlm/.conflict-deps/<pkg>/node_modules 中已安装的版本是否满足要求
  */
 const filterConflictsNeedInstall = (
   conflicts: DependencyConflict[],
-  conflictDir: string,
+  conflictNodeModules: string,
 ): DependencyConflict[] => {
   return conflicts.filter((conflict) => {
-    const installedPkgPath = join(conflictDir, conflict.name);
+    const installedPkgPath = join(conflictNodeModules, conflict.name);
 
     // 如果目录不存在，需要安装
     if (!pathExistsSync(installedPkgPath)) {
@@ -177,18 +220,15 @@ const filterConflictsNeedInstall = (
 };
 
 /**
- * 执行安装命令并等待完成
+ * 执行冲突依赖安装命令
+ * 使用 file: 协议在 app 目录安装包装包，利用 npm 原生嵌套去重
  */
-const runInstallCommand = (
+const runConflictDepsInstall = (
   pm: string,
-  packageSpecs: string[],
+  relativePkgPath: string,
   cwd: string,
 ): Promise<void> => {
-  if (packageSpecs.length === 0) {
-    return Promise.resolve();
-  }
-  const { cmd, args } = getInstallCommand(pm, packageSpecs);
-  const command = `${cmd} ${args.join(' ')}`;
+  const command = `${pm} install file:${relativePkgPath} --no-save --legacy-peer-deps`;
   logger.info(t('depDebugRunCommand', { cmd: logger.cmd(command) }));
   execSync(command, {
     cwd,
@@ -196,6 +236,64 @@ const runInstallCommand = (
     encoding: 'utf-8',
   });
   return Promise.resolve();
+};
+
+/**
+ * 创建冲突依赖的 symlink
+ * 将 .nlm/<pkg>/node_modules/<dep> 链接到 .nlm/.conflict-deps/<pkg>/node_modules/<dep>
+ */
+const createConflictDepSymlinks = async (
+  packageName: string,
+  conflicts: DependencyConflict[],
+  workingDir: string,
+): Promise<void> => {
+  const nlmPkgDir = join(getProjectNlmDir(workingDir), packageName);
+  const nlmPkgNodeModules = join(nlmPkgDir, 'node_modules');
+  const conflictPkgDir = getConflictDepsPackageDir(workingDir, packageName);
+  const conflictNodeModules = join(conflictPkgDir, 'node_modules');
+
+  for (const conflict of conflicts) {
+    const linkPath = join(nlmPkgNodeModules, conflict.name);
+    const targetPath = join(conflictNodeModules, conflict.name);
+
+    // 目标不存在则跳过（可能安装失败）
+    if (!pathExistsSync(targetPath)) {
+      continue;
+    }
+
+    // 计算相对路径
+    const relativeTarget = relative(dirname(linkPath), targetPath);
+
+    try {
+      // 检查是否已存在正确的 symlink
+      const stats = await fs.lstat(linkPath).catch(() => null);
+      if (stats?.isSymbolicLink()) {
+        const currentTarget = await fs.readlink(linkPath);
+        if (currentTarget === relativeTarget || currentTarget === targetPath) {
+          continue; // 已正确
+        }
+      }
+      // 删除现有的目录或错误的链接
+      if (stats) {
+        removeSync(linkPath);
+      }
+
+      // 确保父目录存在（处理 scoped packages 如 @scope/pkg）
+      await fs.ensureDir(dirname(linkPath));
+      // 创建相对路径的软链接
+      await fs.symlink(relativeTarget, linkPath, 'junction');
+
+      logger.debug(
+        t('nestedDebugReplaced', {
+          from: logger.path(linkPath),
+          to: relativeTarget,
+        }),
+      );
+    } catch (error) {
+      logger.debug(`创建冲突依赖 symlink 失败: ${conflict.name}`);
+      logger.debug(String(error));
+    }
+  }
 };
 
 /**
@@ -236,21 +334,16 @@ export const runInstall = async (
   packageNames: string[],
 ): Promise<void> => {
   const pm = getActualPackageManager(workingDir);
-  await runInstallCommand(pm, packageNames, workingDir);
-};
-
-/**
- * 获取包管理器的安装命令
- * 添加 --legacy-peer-deps 等标志跳过 peer dependency 检查
- */
-const getInstallCommand = (
-  pm: string,
-  packageSpecs: string[],
-): { cmd: string; args: string[] } => {
-  return {
-    cmd: pm,
-    args: ['install', ...packageSpecs, '--legacy-peer-deps'],
-  };
+  if (packageNames.length === 0) {
+    return;
+  }
+  const command = `${pm} install ${packageNames.join(' ')} --legacy-peer-deps`;
+  logger.info(t('depDebugRunCommand', { cmd: logger.cmd(command) }));
+  execSync(command, {
+    cwd: workingDir,
+    stdio: 'inherit',
+    encoding: 'utf-8',
+  });
 };
 
 /**

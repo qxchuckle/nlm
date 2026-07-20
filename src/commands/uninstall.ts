@@ -1,6 +1,11 @@
 import { join } from 'path';
 import { NlmError } from '../types';
-import { PROJECT_NLM_DIR, getProjectPackageDir } from '../constants';
+import {
+  PROJECT_NLM_DIR,
+  getProjectPackageDir,
+  getConflictDepsPackageDir,
+  getConflictDepsNodeModulesPath,
+} from '../constants';
 import {
   isValidProject,
   isScopedPackage,
@@ -70,6 +75,18 @@ const uninstallPackage = (workingDir: string, name: string): void => {
 
   // 从 store 的使用记录中移除
   removePackageUsage(name, workingDir);
+
+  // 清理冲突依赖包装包
+  const conflictDepsDir = getConflictDepsPackageDir(workingDir, name);
+  if (pathExistsSync(conflictDepsDir)) {
+    removeSync(conflictDepsDir);
+  }
+
+  // 清理 app node_modules 中的包装包 symlink
+  const conflictNmPath = getConflictDepsNodeModulesPath(workingDir, name);
+  if (pathExistsSync(conflictNmPath)) {
+    removeSync(conflictNmPath);
+  }
 };
 
 /**

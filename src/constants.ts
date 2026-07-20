@@ -113,3 +113,52 @@ export const getProjectPackageDir = (
 ): string => {
   return join(getProjectNlmDir(workingDir), packageName);
 };
+
+/**
+ * 冲突依赖包装包目录名（位于 .nlm/ 下）
+ */
+export const CONFLICT_DEPS_DIR = '.conflict-deps';
+
+/**
+ * 冲突依赖包装包在 app node_modules 中的名称前缀
+ */
+export const CONFLICT_DEPS_PKG_PREFIX = '.nlm-cd-';
+
+/**
+ * 获取项目 .nlm/.conflict-deps 目录路径
+ */
+export const getConflictDepsDir = (workingDir: string): string => {
+  return join(getProjectNlmDir(workingDir), CONFLICT_DEPS_DIR);
+};
+
+/**
+ * 获取指定 nlm 包的冲突依赖包装包目录
+ */
+export const getConflictDepsPackageDir = (
+  workingDir: string,
+  packageName: string,
+): string => {
+  return join(getConflictDepsDir(workingDir), packageName);
+};
+
+/**
+ * 将包名转换为合法的冲突依赖包装包名称
+ * scoped 包 @scope/name → .nlm-cd-scope+name
+ */
+export const getConflictDepsPackageName = (packageName: string): string => {
+  return `${CONFLICT_DEPS_PKG_PREFIX}${packageName.replace('@', '').replace('/', '+')}`;
+};
+
+/**
+ * 获取冲突依赖包装包在 app node_modules 中的路径
+ */
+export const getConflictDepsNodeModulesPath = (
+  workingDir: string,
+  packageName: string,
+): string => {
+  return join(
+    workingDir,
+    'node_modules',
+    getConflictDepsPackageName(packageName),
+  );
+};
