@@ -31,6 +31,30 @@ import logger from '../utils/logger';
 import { t } from '../utils/i18n';
 
 /**
+ * 获取冲突依赖的实际 node_modules 路径
+ * 优先 .conflict-deps/<pkg>/node_modules（npm symlink 场景）
+ * 回退 app/node_modules/nlm-cd-<pkg>/node_modules（fnpm 复制场景）
+ */
+const getConflictNodeModulesPath = (
+  workingDir: string,
+  packageName: string,
+): string => {
+  const localPath = join(
+    getConflictDepsPackageDir(workingDir, packageName),
+    'node_modules',
+  );
+  if (pathExistsSync(localPath)) {
+    return localPath;
+  }
+  return join(
+    workingDir,
+    'node_modules',
+    getConflictDepsPackageName(packageName),
+    'node_modules',
+  );
+};
+
+/**
  * 检测依赖冲突
  * 比较 nlm 包的依赖和项目的依赖，找出版本不兼容的依赖
  * 使用 npm semver 规则判断版本范围是否兼容
@@ -116,8 +140,11 @@ export const handleDependencyConflicts = async (
 
   // 冲突依赖包装包目录
   const conflictPkgDir = getConflictDepsPackageDir(workingDir, packageName);
-  // 包装包的 node_modules（冲突依赖实际安装位置）
-  const conflictNodeModules = join(conflictPkgDir, 'node_modules');
+  // 冲突依赖实际 node_modules 路径
+  const conflictNodeModules = getConflictNodeModulesPath(
+    workingDir,
+    packageName,
+  );
 
   // 过滤出真正需要安装的依赖（已安装的版本不满足要求）
   const needInstall = filterConflictsNeedInstall(
@@ -161,6 +188,7 @@ export const handleDependencyConflicts = async (
   ensureDirSync(conflictPkgDir);
   const conflictPkgManifest = {
     name: getConflictDepsPackageName(packageName),
+    version: '1.0.0',
     private: true,
     dependencies: Object.fromEntries(
       conflicts.map((c) => [c.name, c.requiredVersion]),
@@ -240,7 +268,7 @@ const runConflictDepsInstall = (
 
 /**
  * 创建冲突依赖的 symlink
- * 将 .nlm/<pkg>/node_modules/<dep> 链接到 .nlm/.conflict-deps/<pkg>/node_modules/<dep>
+ * 将 .nlm/<pkg>/node_modules/<dep> 链接到 app/node_modules/nlm-cd-<pkg>/node_modules/<dep>
  */
 const createConflictDepSymlinks = async (
   packageName: string,
@@ -249,8 +277,10 @@ const createConflictDepSymlinks = async (
 ): Promise<void> => {
   const nlmPkgDir = join(getProjectNlmDir(workingDir), packageName);
   const nlmPkgNodeModules = join(nlmPkgDir, 'node_modules');
-  const conflictPkgDir = getConflictDepsPackageDir(workingDir, packageName);
-  const conflictNodeModules = join(conflictPkgDir, 'node_modules');
+  const conflictNodeModules = getConflictNodeModulesPath(
+    workingDir,
+    packageName,
+  );
 
   for (const conflict of conflicts) {
     const linkPath = join(nlmPkgNodeModules, conflict.name);

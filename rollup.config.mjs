@@ -9,6 +9,7 @@ import nodeExternals from 'rollup-plugin-node-externals';
 import dts from 'rollup-plugin-dts';
 import alias from '@rollup/plugin-alias';
 import path from 'node:path';
+import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -18,6 +19,19 @@ const outputDir = 'lib';
 const aliasEntries = [
   { find: '@', replacement: path.resolve(__dirname, 'src') },
 ];
+
+/**
+ * 构建后给 bin 文件添加执行权限
+ */
+const chmodBin = () => ({
+  name: 'chmod-bin',
+  writeBundle() {
+    const binPath = path.resolve(__dirname, outputDir, 'cli.js');
+    if (fs.existsSync(binPath)) {
+      fs.chmodSync(binPath, 0o755);
+    }
+  },
+});
 
 export default defineConfig([
   {
@@ -64,6 +78,7 @@ export default defineConfig([
       commonjs({
         extensions: ['.js'],
       }),
+      chmodBin(),
       // replace({
       //   preventAssignment: true,
       //   __env__: JSON.stringify(process.env.ENV),
