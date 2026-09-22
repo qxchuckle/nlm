@@ -22,6 +22,10 @@ export const zh = {
   pushVersionInput: '输入版本号（latest、1.0.0、^1.0.0 等）',
   pushVersionInvalid: '无效的版本号 "{version}"，需为 latest、1.0.0、^1.0.0 等',
   pushVersionNoMatch: 'store 中无符合 "{range}" 的版本',
+  pushVersionBehindLatest:
+    'store 中存在更高版本 {latest}，本次将推送为 {version}，lockfile 为 latest 的项目不会收到此更新',
+  pushForceLatestApplied:
+    'pushForceLatest 已开启，忽略 package.json 版本，强制推送到 store 最新版本',
   pushSelectScript: '选择 push 前要执行的脚本',
   pushScriptSkip: '不执行',
   pushBuildStart: '开始构建，执行脚本 "{script}": {content}',
@@ -50,6 +54,8 @@ export const zh = {
   installAvailableVersions: '可用版本: {versions}',
   installNoMatchVersion: '没有满足 {version} 的版本',
   installNoVersion: '{pkg} 没有可用版本',
+  installForceLatestHint:
+    'installForceLatest 已开启，忽略指定版本 {version}，强制安装 store 最新版本',
   installTargetVersion: '目标版本 {target} 安装版本: {actual}',
   installPackage: '安装 {pkg}',
   installProcessDeps: '处理依赖冲突...',
@@ -115,6 +121,12 @@ export const zh = {
   configPackageManager: '包管理器:',
   configLang: '语言:',
   configSelectLang: '选择语言',
+  configInstallForceLatest: '安装时强制使用最新版本:',
+  configSelectInstallForceLatest:
+    '安装/更新时忽略指定版本，强制安装 store 中的最新版本',
+  configPushForceLatest: '推送时强制使用最新版本:',
+  configSelectPushForceLatest:
+    '推送时忽略 package.json 版本，强制推送到 store 中的最新版本',
 
   // wizard 命令（交互式向导）
   cmdWizardDesc: '交互式向导，选择命令与参数并执行',

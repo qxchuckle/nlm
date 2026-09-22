@@ -1,5 +1,5 @@
 import { NlmError } from '../types';
-import { getProjectPackageDir } from '../constants';
+import { LATEST_VERSION, getProjectPackageDir } from '../constants';
 import {
   parsePackageName,
   isValidProject,
@@ -102,7 +102,7 @@ export const update = async (packageNames?: string[]): Promise<void> => {
  * 更新单个包
  */
 export const updateSinglePackage = async (name: string): Promise<boolean> => {
-  const { workingDir, force } = getRuntime();
+  const { workingDir, force, nlmConfig } = getRuntime();
   // 检查包是否存在于 store
   if (!packageExistsInStore(name)) {
     logger.warn(t('updateNotInStore', { pkg: logger.pkg(name) }));
@@ -117,8 +117,12 @@ export const updateSinglePackage = async (name: string): Promise<boolean> => {
   }
 
   // 确定要安装的版本
+  // installForceLatest 配置：忽略 lockfile 中的版本，强制解析 store 最新版本
   const availableVersions = getPackageVersionsInStore(name);
-  const resolved = resolveVersion(lockEntry.version, availableVersions);
+  const resolved = resolveVersion(
+    nlmConfig.installForceLatest ? LATEST_VERSION : lockEntry.version,
+    availableVersions,
+  );
 
   if (!resolved) {
     logger.warn(
@@ -163,8 +167,9 @@ export const updateSinglePackage = async (name: string): Promise<boolean> => {
   logger.debug('replaceNested', logger.duration(startTime));
 
   // 更新 lockfile 中的 signature
+  // installForceLatest 开启时实际安装的是 latest，lockfile 同步记录 latest 以保持一致
   addPackageToLockfile(workingDir, name, {
-    version: lockEntry.version,
+    version: nlmConfig.installForceLatest ? LATEST_VERSION : lockEntry.version,
     signature: copyResult.signature,
   });
   return true;

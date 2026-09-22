@@ -34,6 +34,20 @@ const installPackage = async (
     throw new NlmError(t('errInvalidPackageName', { name: packageName }));
   }
 
+  // installForceLatest 配置：忽略指定版本，强制安装 store 中的最新版本
+  const { nlmConfig } = getRuntime();
+  const effectiveRequestedVersion = nlmConfig.installForceLatest
+    ? LATEST_VERSION
+    : requestedVersion;
+
+  if (nlmConfig.installForceLatest && requestedVersion) {
+    logger.info(
+      t('installForceLatestHint', {
+        version: logger.version(requestedVersion),
+      }),
+    );
+  }
+
   // 检查包是否存在于 store
   if (!packageExistsInStore(name)) {
     logger.info(
@@ -44,7 +58,7 @@ const installPackage = async (
 
   // 确定要安装的版本
   const availableVersions = getPackageVersionsInStore(name);
-  const resolved = resolveVersion(requestedVersion, availableVersions);
+  const resolved = resolveVersion(effectiveRequestedVersion, availableVersions);
 
   if (!resolved) {
     if (availableVersions.length > 0) {
@@ -54,9 +68,9 @@ const installPackage = async (
         }),
       );
     }
-    const versionStr = requestedVersion || LATEST_VERSION;
+    const versionStr = effectiveRequestedVersion || LATEST_VERSION;
     throw new NlmError(
-      resolved === null && requestedVersion
+      resolved === null && effectiveRequestedVersion
         ? t('installNoMatchVersion', { version: logger.version(versionStr) })
         : t('installNoVersion', { pkg: logger.pkg(name) }),
     );
@@ -67,7 +81,7 @@ const installPackage = async (
   // 打印版本解析信息
   logger.info(
     t('installTargetVersion', {
-      target: logger.version(requestedVersion || LATEST_VERSION),
+      target: logger.version(effectiveRequestedVersion || LATEST_VERSION),
       actual: logger.version(versionToInstall),
     }),
   );
@@ -96,7 +110,7 @@ const installPackage = async (
 
   // 更新 lockfile
   addPackageToLockfile(workingDir, name, {
-    version: requestedVersion || LATEST_VERSION,
+    version: effectiveRequestedVersion || LATEST_VERSION,
     signature: copyResult.signature,
   });
 

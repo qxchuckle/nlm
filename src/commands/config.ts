@@ -20,6 +20,8 @@ import { isValidProject } from '@/utils/package';
 const configItems: (ConfigItemDefinition & {
   key: keyof NlmConfig; /** 标签翻译 key */
   labelKey: keyof Messages;
+  /** 布尔配置项，交互值为 'true'/'false' 字符串，存储时转换为 boolean */
+  boolean?: boolean;
 })[] = [
   {
     type: 'select',
@@ -38,6 +40,28 @@ const configItems: (ConfigItemDefinition & {
     presets: ['auto', 'zh', 'en'],
     allowCustom: false,
     defaultValue: DEFAULT_CONFIG.lang,
+  },
+  {
+    type: 'select',
+    key: 'installForceLatest',
+    labelKey: 'configInstallForceLatest',
+    messageKey: 'configSelectInstallForceLatest',
+    presets: ['false', 'true'],
+    allowCustom: false,
+    defaultValue: String(DEFAULT_CONFIG.installForceLatest),
+    /** 布尔配置项，交互值需转换为 boolean 存储 */
+    boolean: true,
+  },
+  {
+    type: 'select',
+    key: 'pushForceLatest',
+    labelKey: 'configPushForceLatest',
+    messageKey: 'configSelectPushForceLatest',
+    presets: ['false', 'true'],
+    allowCustom: false,
+    defaultValue: String(DEFAULT_CONFIG.pushForceLatest),
+    /** 布尔配置项，交互值需转换为 boolean 存储 */
+    boolean: true,
   },
 ];
 
@@ -64,9 +88,20 @@ export const config = async (global: boolean): Promise<void> => {
   const newConfig: Partial<NlmConfig> = {};
 
   for (const item of configItems) {
-    const currentValue = currentConfig[item.key] as string | undefined;
-    const value = await promptConfigItem(item, currentValue);
-    (newConfig as Record<string, string | string[]>)[item.key] = value;
+    const rawCurrent = currentConfig[item.key];
+    // 布尔配置项：boolean → 'true'/'false' 字符串供交互展示
+    const currentValue =
+      typeof rawCurrent === 'boolean' ? String(rawCurrent) : rawCurrent;
+    const value = await promptConfigItem(
+      item,
+      currentValue as string | undefined,
+    );
+    if (item.boolean) {
+      (newConfig as Record<string, string | string[] | boolean>)[item.key] =
+        value === 'true';
+    } else {
+      (newConfig as Record<string, string | string[]>)[item.key] = value;
+    }
   }
 
   // 保存配置
@@ -85,8 +120,10 @@ export const config = async (global: boolean): Promise<void> => {
   // 显示配置结果
   logger.log(t('configResult'));
   for (const item of configItems) {
-    const value = (newConfig as Record<string, string>)[item.key];
-    console.log(`  ${chalk.gray(t(item.labelKey))} ${chalk.green(value)}`);
+    const value = (newConfig as Record<string, unknown>)[item.key];
+    console.log(
+      `  ${chalk.gray(t(item.labelKey))} ${chalk.green(String(value))}`,
+    );
   }
 };
 

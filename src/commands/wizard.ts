@@ -215,7 +215,10 @@ const promptItemValue = async (
       const chosen = await promptSingleSelectPro(
         t('pushVersionPrompt'),
         choices,
-        currentVer,
+        // pushForceLatest 开启时默认选中 latest，避免默认的 package.json 版本作为显式参数覆盖配置
+        getRuntime().nlmConfig.pushForceLatest && latestInStore != null
+          ? 'latest'
+          : currentVer,
       );
       if (chosen === PUSH_VERSION_CUSTOM_VALUE) {
         return await input({

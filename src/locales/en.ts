@@ -28,6 +28,10 @@ export const en = {
   pushVersionInvalid:
     'Invalid version "{version}", must be "latest", exact (e.g. 1.0.0) or range (e.g. ^1.0.0)',
   pushVersionNoMatch: 'No version in store satisfies "{range}"',
+  pushVersionBehindLatest:
+    'Store has a higher version {latest}, pushing as {version}; projects with lockfile "latest" will NOT receive this update',
+  pushForceLatestApplied:
+    'pushForceLatest enabled, ignoring package.json version, forcing push to store latest version',
   pushSelectScript: 'Select script to run before push',
   pushScriptSkip: 'Skip',
   pushBuildStart: 'Starting build, running script "{script}": {content}',
@@ -72,6 +76,8 @@ export const en = {
   installAvailableVersions: 'Available versions: {versions}',
   installNoMatchVersion: 'No version satisfies {version}',
   installNoVersion: '{pkg} has no available versions',
+  installForceLatestHint:
+    'installForceLatest enabled, ignoring requested version {version}, forcing install of store latest version',
   installTargetVersion: 'Target version {target}, installing version: {actual}',
   installPackage: 'Installing {pkg}',
   installProcessDeps: 'Processing dependency conflicts...',
@@ -138,6 +144,12 @@ export const en = {
   configPackageManager: 'Package manager:',
   configLang: 'Language:',
   configSelectLang: 'Select language',
+  configInstallForceLatest: 'Force latest on install:',
+  configSelectInstallForceLatest:
+    'Ignore requested version on install/update, always install store latest version',
+  configPushForceLatest: 'Force latest on push:',
+  configSelectPushForceLatest:
+    'Ignore package.json version on push, always push to store latest version',
 
   // Common errors
   errInvalidProject:

@@ -4,6 +4,8 @@
 export const DEFAULT_CONFIG: Required<NlmConfig> = {
   packageManager: 'npm',
   lang: 'auto',
+  installForceLatest: false,
+  pushForceLatest: false,
 };
 
 /**
@@ -122,6 +124,10 @@ export interface NlmConfig {
   packageManager?: string;
   /** 语言设置，auto 表示自动识别 */
   lang?: 'auto' | 'zh' | 'en';
+  /** 安装/更新时忽略指定版本，强制安装 store 中的最新版本 */
+  installForceLatest?: boolean;
+  /** 推送时忽略 package.json 版本，强制推送到 store 中的最新版本 */
+  pushForceLatest?: boolean;
 }
 
 /**

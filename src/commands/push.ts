@@ -29,9 +29,22 @@ import {
 const SCRIPT_SKIP_VALUE = '__none__';
 
 export const push = async (): Promise<void> => {
-  const { workingDir, force, buildScript, pushShowScriptList, pushVersion } =
-    getRuntime();
+  const {
+    workingDir,
+    force,
+    buildScript,
+    pushShowScriptList,
+    pushVersion,
+    nlmConfig,
+  } = getRuntime();
   const startTime = Date.now();
+
+  // pushForceLatest 配置：未显式指定版本时强制推送到 store 最新版本
+  const effectivePushVersion =
+    pushVersion ?? (nlmConfig.pushForceLatest ? 'latest' : undefined);
+  if (effectivePushVersion === 'latest' && pushVersion == null) {
+    logger.info(t('pushForceLatestApplied'));
+  }
 
   // 读取当前包的 package.json
   const pkg = readPackageManifest(workingDir);
@@ -43,12 +56,14 @@ export const push = async (): Promise<void> => {
   ensureGitignoreHasNlm(workingDir);
 
   if (
-    pushVersion != null &&
-    pushVersion !== 'latest' &&
-    !isValidVersion(pushVersion) &&
-    !isValidVersionRange(pushVersion)
+    effectivePushVersion != null &&
+    effectivePushVersion !== 'latest' &&
+    !isValidVersion(effectivePushVersion) &&
+    !isValidVersionRange(effectivePushVersion)
   ) {
-    throw new NlmError(t('pushVersionInvalid', { version: pushVersion }));
+    throw new NlmError(
+      t('pushVersionInvalid', { version: effectivePushVersion }),
+    );
   }
 
   let scriptToRun = buildScript;
@@ -98,25 +113,59 @@ export const push = async (): Promise<void> => {
   );
   // 解析推送版本：latest → store 最新；精确版本 → 直接使用；范围(^1.0.0 等) → 从 store 取满足条件的最高版本
   let effectiveVersion: string;
-  if (pushVersion === 'latest') {
+  if (effectivePushVersion === 'latest') {
     if (storeVersions.length === 0) {
-      throw new NlmError(t('pushVersionLatestNotAvailable'));
+      if (pushVersion == null) {
+        // pushForceLatest 配置路径：store 为空（首次推送）时按 package.json 版本推送
+        effectiveVersion = version;
+        updateRuntime({ pushVersion: effectiveVersion });
+      } else {
+        throw new NlmError(t('pushVersionLatestNotAvailable'));
+      }
+    } else {
+      const storeLatest = storeVersions[storeVersions.length - 1];
+      if (
+        pushVersion == null &&
+        isValidVersion(version) &&
+        compareVersions(version, storeLatest) > 0
+      ) {
+        // pushForceLatest 配置路径：package.json 版本高于 store 最新时以其为准（成为新 latest）
+        effectiveVersion = version;
+      } else {
+        effectiveVersion = storeLatest;
+      }
+      updateRuntime({ pushVersion: effectiveVersion });
     }
-    effectiveVersion = storeVersions[storeVersions.length - 1];
-    updateRuntime({ pushVersion: effectiveVersion });
   } else if (
-    pushVersion != null &&
-    isValidVersionRange(pushVersion) &&
-    !isValidVersion(pushVersion)
+    effectivePushVersion != null &&
+    isValidVersionRange(effectivePushVersion) &&
+    !isValidVersion(effectivePushVersion)
   ) {
-    const resolved = resolveVersion(pushVersion, storeVersions);
+    const resolved = resolveVersion(effectivePushVersion, storeVersions);
     if (!resolved) {
-      throw new NlmError(t('pushVersionNoMatch', { range: pushVersion }));
+      throw new NlmError(
+        t('pushVersionNoMatch', { range: effectivePushVersion }),
+      );
     }
     effectiveVersion = resolved.version;
     updateRuntime({ pushVersion: effectiveVersion });
   } else {
-    effectiveVersion = pushVersion ?? version;
+    effectiveVersion = effectivePushVersion ?? version;
+  }
+
+  // 警告：推送版本落后于 store 最新版本，lockfile 为 latest 的项目不会收到此更新
+  const storeLatestVersion = storeVersions[storeVersions.length - 1];
+  if (
+    storeLatestVersion &&
+    isValidVersion(effectiveVersion) &&
+    compareVersions(effectiveVersion, storeLatestVersion) < 0
+  ) {
+    logger.warn(
+      t('pushVersionBehindLatest', {
+        latest: storeLatestVersion,
+        version: effectiveVersion,
+      }),
+    );
   }
 
   // 复制包到 store
