@@ -359,17 +359,42 @@ const parsePkgNameFromPnpmKey = (key: string): string | null => {
 };
 
 /**
+ * 生成带执行目录上下文的命令展示文案
+ * wrap 场景（cwd 非项目根）附加 cd 前缀，便于用户识别命令在哪个目录执行
+ */
+const formatCommandWithCwd = (
+  command: string,
+  cwd: string,
+  workingDir: string,
+): string => {
+  if (cwd === workingDir) {
+    return command;
+  }
+  return `cd ${relative(workingDir, cwd)} && ${command}`;
+};
+
+/**
  * npm pack 包装包生成 tgz（tarball 为标准依赖语义，npm 会正常处理依赖树并 hoist 复用）
  * 返回 tgz 绝对路径；会先清理历史 tgz 产物避免堆积
  */
-const packConflictDeps = (pm: string, conflictPkgDir: string): string => {
+const packConflictDeps = (
+  pm: string,
+  conflictPkgDir: string,
+  workingDir: string,
+): string => {
   for (const file of readdirSync(conflictPkgDir)) {
     if (file.endsWith('.tgz')) {
       removeSync(join(conflictPkgDir, file));
     }
   }
   const command = `${pm} pack --json`;
-  logger.info(t('depDebugRunCommand', { cmd: logger.cmd(command) }));
+  logger.info(
+    t('depDebugRunCommand', {
+      cmd: logger.cmd(
+        formatCommandWithCwd(command, conflictPkgDir, workingDir),
+      ),
+    }),
+  );
   const output = execSync(command, {
     cwd: conflictPkgDir,
     encoding: 'utf-8',
@@ -411,7 +436,7 @@ const runConflictDepsInstall = async (
       command = `${pm} install file:${relativeWrapPath} --no-save --legacy-peer-deps`;
       break;
     case 'app-tarball': {
-      const tgzPath = packConflictDeps(pm, conflictPkgDir);
+      const tgzPath = packConflictDeps(pm, conflictPkgDir, workingDir);
       command = `${pm} install file:${relative(workingDir, tgzPath)} --no-save --legacy-peer-deps --no-package-lock`;
       break;
     }
@@ -433,7 +458,11 @@ const runConflictDepsInstall = async (
       cwd = conflictPkgDir;
       break;
   }
-  logger.info(t('depDebugRunCommand', { cmd: logger.cmd(command) }));
+  logger.info(
+    t('depDebugRunCommand', {
+      cmd: logger.cmd(formatCommandWithCwd(command, cwd, workingDir)),
+    }),
+  );
   execSync(command, {
     cwd,
     stdio: 'inherit',
