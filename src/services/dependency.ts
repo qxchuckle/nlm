@@ -64,8 +64,25 @@ const getConflictNodeModulesPath = (
   if (pathExistsSync(localPath)) {
     return localPath;
   }
+  // cnpm 9（npminstall）：app 的包装包 symlink 指向 .store 实体——
+  // 优先用其真实路径定位当前实体的依赖目录（避免多历史实体首个匹配的歧义）
+  const appPackageLink = join(
+    workingDir,
+    'node_modules',
+    getConflictDepsPackageName(packageName),
+  );
+  if (isSymlink(appPackageLink)) {
+    try {
+      const storeModules = dirname(fs.realpathSync(appPackageLink));
+      if (pathExistsSync(storeModules)) {
+        return storeModules;
+      }
+    } catch {
+      // 悬空链接等 → 落到下方探测
+    }
+  }
   // cnpm 9（npminstall）的 .store 布局：包装包实体目录为 nlm-cd-<pkg>@<随机版本>，
-  // 其实体 node_modules 内含该包装包视角解析好的依赖链接
+  // 其实体 node_modules 内含该包装包视角解析好的依赖链接（非链接布局的兜底探测）
   const storeDir = join(workingDir, 'node_modules', '.store');
   const storePrefix = `${getConflictDepsPackageName(packageName)}@`;
   for (const entry of readdirWithFileTypesSync(storeDir)) {
@@ -212,32 +229,13 @@ export const handleDependencyConflicts = async (
 
   const pm = getActualPackageManager(workingDir);
   const kind = detectPackageManagerKind(pm);
-  // npm 场景：app 的 overrides 会强制钉整棵依赖树（劫持冲突版本）→ 降级 wrap 独立安装（视同 wrap 玩法）
-  const npmOverridesFallback =
-    kind === 'app-tarball' && hasOverridesHijack(workingDir, conflicts);
-  const wrapMode = !isAppDirKind(kind) || npmOverridesFallback;
 
   if (needInstall.length === 0) {
-    if (!wrapMode) {
-      // app 玩法（fnpm/cnpm）：检查 app node_modules 中的包装包是否存在
-      // 如果不存在（被 app 的 install 清掉），需要重新安装以恢复
-      const appSymlinkPath = getConflictDepsNodeModulesPath(
-        workingDir,
-        packageName,
-      );
-      if (pathExistsSync(appSymlinkPath)) {
-        // 包装包存在，只需确保 nlm 包的 symlink 存在
-        await createConflictDepSymlinks(packageName, conflicts, workingDir);
-        return;
-      }
-      // 包装包不存在，需要重新安装（下方逻辑）
-    } else {
-      // wrap 玩法（pnpm/yarn；npm overrides 降级）：wrap 树即安装事实源，needInstall==0 说明依赖已满足
-      // 补跑复用优化：确保历史安装/配置变化（如 hoisted 适配）后的优化状态收敛
-      applyReuseOptimizations(kind, packageName, workingDir);
-      await createConflictDepSymlinks(packageName, conflicts, workingDir);
-      return;
-    }
+    // wrap 树即安装事实源，needInstall==0 说明依赖已满足
+    // 补跑复用优化：确保历史安装/配置变化（如 hoisted 适配）后的优化状态收敛
+    applyReuseOptimizations(kind, packageName, workingDir);
+    await createConflictDepSymlinks(packageName, conflicts, workingDir);
+    return;
   }
 
   // 创建包装包 package.json（声明所有冲突依赖，而非仅 needInstall，避免 npm prune 已安装的）
@@ -254,7 +252,7 @@ export const handleDependencyConflicts = async (
   };
   writeJsonSync(join(conflictPkgDir, 'package.json'), conflictPkgManifest);
 
-  // 执行安装（按包管理器类别分流：app 目录玩法 / wrap 目录独立安装）
+  // 执行安装（wrap 目录独立安装，按包管理器类别适配参数）
   try {
     await runConflictDepsInstall(
       pm,
@@ -262,7 +260,6 @@ export const handleDependencyConflicts = async (
       packageName,
       workingDir,
       conflictPkgDir,
-      npmOverridesFallback,
     );
   } catch (error) {
     logger.error(t('depInstallFailed'));
@@ -271,6 +268,19 @@ export const handleDependencyConflicts = async (
 
   // 后置复用优化：将 wrap 树中与 app 重复的依赖指向 app 现有副本（best-effort）
   applyReuseOptimizations(kind, packageName, workingDir);
+
+  // 安装后复核：落地版本仍未满足时告警（异常路径兜底，如未知的依赖覆盖机制）
+  const unsatisfied = filterConflictsNeedInstall(
+    conflicts,
+    getConflictNodeModulesPath(workingDir, packageName),
+  );
+  if (unsatisfied.length > 0) {
+    logger.warn(
+      `冲突依赖安装后仍未满足版本要求: ${unsatisfied
+        .map((conflict) => conflict.name)
+        .join(', ')}`,
+    );
+  }
 
   // 创建 symlink：.nlm/<pkg>/node_modules/<dep> → conflict-deps 中的实际位置
   await createConflictDepSymlinks(packageName, conflicts, workingDir);
@@ -314,30 +324,26 @@ const filterConflictsNeedInstall = (
 
 /**
  * 包管理器类别：决定冲突依赖的安装位置与参数策略（各命令组合均已实测验证）
+ * 统一 wrap 独立安装：此前 app 域安装（file:/tarball）在多 nlm 包场景下，
+ * 后装包会在 app 树重算时清理先装包的安装产物（互踩致悬空），故全部改为 wrap 独立
  */
 type PackageManagerKind =
-  | 'app-file' // fnpm / cnpm：app 目录 file: 目录玩法（依赖 hoist 复用）
-  | 'app-tarball' // npm：app 目录 file: tarball 玩法（依赖 hoist 复用）
   | 'wrap-pnpm' // pnpm：wrap 目录独立安装 + 后置复用优化
   | 'wrap-yarn' // yarn 1：wrap 目录独立安装 + 后置复用优化
+  | 'wrap-npm' // npm / fnpm / cnpm：wrap 目录独立安装（npm 系参数）
   | 'wrap-plain'; // 未知：wrap 目录保守安装
 
 /**
  * 按命令名识别包管理器类别（精确匹配，容忍路径前缀与参数后缀）
- * 注意 fnpm 与 cnpm 同属 app-file（fnpm 为 cnpm 封装，行为一致）
+ * 注意 fnpm 与 cnpm 同属 wrap-npm（fnpm 为 cnpm 封装，npm 系参数一致）
  */
 const detectPackageManagerKind = (pm: string): PackageManagerKind => {
   const cmd = basename(pm.trim().split(/\s+/)[0] || '');
   if (cmd === 'pnpm') return 'wrap-pnpm';
   if (cmd === 'yarn' || cmd === 'yarnpkg') return 'wrap-yarn';
-  if (cmd === 'fnpm' || cmd === 'cnpm') return 'app-file';
-  if (cmd === 'npm') return 'app-tarball';
+  if (cmd === 'npm' || cmd === 'fnpm' || cmd === 'cnpm') return 'wrap-npm';
   return 'wrap-plain';
 };
-
-/** 是否为 app 目录玩法（安装发生在 app、依赖由 app 树承载） */
-const isAppDirKind = (kind: PackageManagerKind): boolean =>
-  kind === 'app-file' || kind === 'app-tarball';
 
 /**
  * 判断 app 是否使用 pnpm 全局虚拟店
@@ -404,107 +410,12 @@ const formatCommandWithCwd = (
 };
 
 /**
- * 解析 overrides 键的包名
- * supports-color / supports-color@^5 / @scope/pkg / @scope/pkg@^1 → 包名部分
- */
-const parseOverrideKeyName = (key: string): string => {
-  const at = key.indexOf('@', key.startsWith('@') ? 1 : 0);
-  return at > 0 ? key.slice(0, at) : key;
-};
-
-/**
- * 判断 app 的 overrides 是否会劫持冲突依赖
- * npm 的 overrides 作用于整棵依赖树（含包装包依赖的冲突版本），
- * 命中冲突依赖名时须降级为 wrap 独立安装（不受 app overrides 影响）
- */
-const hasOverridesHijack = (
-  workingDir: string,
-  conflicts: DependencyConflict[],
-): boolean => {
-  const overrides = readPackageManifest(workingDir)?.overrides;
-  if (!overrides) return false;
-  const names = new Set<string>();
-  const collect = (value: unknown): void => {
-    if (!value || typeof value !== 'object') return;
-    for (const [key, child] of Object.entries(value)) {
-      names.add(parseOverrideKeyName(key));
-      collect(child);
-    }
-  };
-  collect(overrides);
-  return conflicts.some((conflict) => names.has(conflict.name));
-};
-
-/**
- * 获取 npm 主版本号（--install-links 需 npm ≥9；结果缓存）
- * 获取失败时返回 0（将走 tarball 兼容路径）
- */
-let cachedNpmMajorVersion: number | undefined;
-const getNpmMajorVersion = (pm: string): number => {
-  if (cachedNpmMajorVersion !== undefined) {
-    return cachedNpmMajorVersion;
-  }
-  try {
-    const output = execSync(`${pm} --version`, { encoding: 'utf-8' });
-    cachedNpmMajorVersion = parseInt(output.trim().split('.')[0], 10) || 0;
-  } catch {
-    cachedNpmMajorVersion = 0;
-  }
-  return cachedNpmMajorVersion;
-};
-
-/**
- * npm pack 包装包生成 tgz（tarball 为标准依赖语义，npm 会正常处理依赖树并 hoist 复用）
- * 返回 tgz 绝对路径；会先清理历史 tgz 产物避免堆积
- * 仅用于 npm <9 的兼容回退（≥9 走 --install-links 免手动 pack）
- */
-const packConflictDeps = (
-  pm: string,
-  conflictPkgDir: string,
-  workingDir: string,
-): string => {
-  for (const file of readdirSync(conflictPkgDir)) {
-    if (file.endsWith('.tgz')) {
-      removeSync(join(conflictPkgDir, file));
-    }
-  }
-  const command = `${pm} pack --json`;
-  logger.info(
-    t('depDebugRunCommand', {
-      cmd: logger.cmd(
-        formatCommandWithCwd(command, conflictPkgDir, workingDir),
-      ),
-    }),
-  );
-  const output = execSync(command, {
-    cwd: conflictPkgDir,
-    encoding: 'utf-8',
-    stdio: ['ignore', 'pipe', 'inherit'],
-  });
-  let filename: string | undefined;
-  try {
-    const parsed = JSON.parse(output) as Array<{ filename?: string }>;
-    filename = parsed?.[0]?.filename;
-  } catch {
-    filename = output.match(/"filename"\s*:\s*"([^"]+)"/)?.[1];
-  }
-  if (!filename) {
-    throw new NlmError(`npm pack 未返回 tgz 文件名: ${output}`);
-  }
-  return join(conflictPkgDir, filename);
-};
-
-/**
- * 执行冲突依赖安装（按包管理器类别分流）
- * - app-file（fnpm/cnpm）：app 目录 file: 目录安装，--no-save 防写 app 文件、--prefer-offline 走缓存元数据（fnpm 内核 npm 6 支持）
- * - app-tarball（npm）：npm ≥9 用 --install-links 让 file: 目录以打包语义安装（免手动 pack）；
- *   <9 回退 tarball 流程（file: 目录为 link 语义不装依赖）；
- *   若 app overrides 会劫持冲突依赖（fallbackToWrap）则降级为 wrap 独立安装
- * - wrap-pnpm：wrap 目录独立安装（--ignore-workspace 防被 app workspace 捕获、--lockfile=false 禁 lock、
+ * 执行冲突依赖安装（统一 wrap 目录独立安装，按包管理器类别适配参数）
+ * - wrap-pnpm：--ignore-workspace 防被 app workspace 捕获、--lockfile=false 禁 lock、
  *   --prefer-offline 跳过 metadata 网络校验（大依赖树实测解析 116s → 7.6s）、
- *   --config.strict-peer-dependencies=false 显式忽略 peer 严格检查（与 npm 的 --legacy-peer-deps 语义对齐，
- *   免疫用户全局开启 strict-peer-dependencies 导致的安装失败））
- * - wrap-yarn：wrap 目录独立安装（--no-lockfile 禁 lock、--prefer-offline 同理）
+ *   --config.strict-peer-dependencies=false 显式忽略 peer 严格检查（与 --legacy-peer-deps 语义对齐）
+ * - wrap-yarn：--no-lockfile 禁 lock、--prefer-offline 同理
+ * - wrap-npm（npm/fnpm/cnpm）：--no-package-lock 禁 lock、--prefer-offline、--legacy-peer-deps 忽略 peer 冲突
  * - wrap-plain：wrap 目录保守安装
  */
 const runConflictDepsInstall = async (
@@ -513,51 +424,28 @@ const runConflictDepsInstall = async (
   packageName: string,
   workingDir: string,
   conflictPkgDir: string,
-  fallbackToWrap: boolean,
 ): Promise<void> => {
-  const relativeWrapPath = relative(workingDir, conflictPkgDir);
   let command: string;
-  let cwd = workingDir;
   switch (kind) {
-    case 'app-file':
-      command = `${pm} install file:${relativeWrapPath} --no-save --legacy-peer-deps --prefer-offline`;
-      break;
-    case 'app-tarball': {
-      // app 的 overrides 会强制钉整棵依赖树的版本（劫持冲突版本）：
-      // 降级为 wrap 目录独立安装（读 wrap 自己的 package.json，不受 app overrides 影响）
-      if (fallbackToWrap) {
-        command = `${pm} install --no-package-lock --prefer-offline --legacy-peer-deps`;
-        cwd = conflictPkgDir;
-        break;
-      }
-      // npm ≥9：--install-links 让 file: 目录以"打包语义"安装（免手动 pack/tgz 管理，行为与 tarball 等效）
-      if (getNpmMajorVersion(pm) >= 9) {
-        command = `${pm} install file:${relativeWrapPath} --install-links --no-save --legacy-peer-deps --no-package-lock --prefer-offline`;
-        break;
-      }
-      // npm <9 兼容回退：先 pack 为 tgz 再安装（install-links 不存在，file: 目录为 link 语义不装依赖）
-      const tgzPath = packConflictDeps(pm, conflictPkgDir, workingDir);
-      command = `${pm} install file:${relative(workingDir, tgzPath)} --no-save --legacy-peer-deps --no-package-lock --prefer-offline`;
-      break;
-    }
     case 'wrap-pnpm': {
       // app 为全局虚拟店时跟随启用（依赖实体与 app 同路径，零后置处理共享）
       const globalStoreOpt = isPnpmGlobalVirtualStoreApp(workingDir)
         ? ' --config.enable-global-virtual-store=true'
         : '';
       command = `${pm} install --ignore-workspace --lockfile=false --prefer-offline --config.strict-peer-dependencies=false${globalStoreOpt}`;
-      cwd = conflictPkgDir;
       break;
     }
     case 'wrap-yarn':
       command = `${pm} install --no-lockfile --prefer-offline`;
-      cwd = conflictPkgDir;
+      break;
+    case 'wrap-npm':
+      command = `${pm} install --no-package-lock --prefer-offline --legacy-peer-deps`;
       break;
     default:
       command = `${pm} install`;
-      cwd = conflictPkgDir;
       break;
   }
+  const cwd = conflictPkgDir;
   logger.info(
     t('depDebugRunCommand', {
       cmd: logger.cmd(formatCommandWithCwd(command, cwd, workingDir)),
@@ -718,7 +606,8 @@ const applyReuseOptimizations = (
   try {
     if (kind === 'wrap-pnpm') {
       optimizePnpmReuse(workingDir, packageName);
-    } else if (kind === 'wrap-yarn') {
+    } else {
+      // 平铺树（yarn 1 / npm 系 / pnpm hoisted / 未知）：同名同版本替换为指向 app 实体的 symlink
       optimizeFlatReuse(
         join(
           getConflictDepsPackageDir(workingDir, packageName),
@@ -872,6 +761,71 @@ export const runInstall = async (
 };
 
 /**
+ * 安全清理复核：仅当清理不会使「既有冲突链接」的解析结果变差时放行
+ * 对每个现存冲突链接：若其目标有效（正在提供正确版本），
+ * 则要求 app 顶层实际版本存在且满足要求（清理后解析回退到它）；
+ * 悬空链接（已失效）与无链接情况放行
+ */
+const canSafelyCleanupConflictLinks = (
+  packageName: string,
+  nlmPkg: PackageManifest,
+  workingDir: string,
+): boolean => {
+  const nlmPkgNodeModules = join(
+    getProjectNlmDir(workingDir),
+    packageName,
+    'node_modules',
+  );
+  const allDeps: Dependencies = {
+    ...nlmPkg.dependencies,
+    ...nlmPkg.peerDependencies,
+  };
+
+  const checkLink = (linkPath: string, depName: string): boolean => {
+    const requiredVersion = allDeps[depName];
+    if (!requiredVersion) {
+      return true; // 非本包依赖的链接（异常）→ 不拦截
+    }
+    // 链接目标无效（悬空）→ 本就无解析价值，清理无损失
+    try {
+      if (!fs.existsSync(fs.realpathSync(linkPath))) {
+        return true;
+      }
+    } catch {
+      return true;
+    }
+    // 链接有效：要求 app 顶层实际版本存在且满足（清理后的解析回退目标）
+    const appInstalled = getInstalledPackageManifest(workingDir, depName);
+    if (!appInstalled?.version) {
+      return false;
+    }
+    try {
+      return satisfiesVersion(appInstalled.version, requiredVersion);
+    } catch {
+      return false;
+    }
+  };
+
+  for (const entry of readdirWithFileTypesSync(nlmPkgNodeModules)) {
+    const entryPath = join(nlmPkgNodeModules, entry.name);
+    if (entry.name.startsWith('@') && entry.isDirectory()) {
+      for (const sub of readdirWithFileTypesSync(entryPath)) {
+        const subPath = join(entryPath, sub.name);
+        if (
+          isSymlink(subPath) &&
+          !checkLink(subPath, `${entry.name}/${sub.name}`)
+        ) {
+          return false;
+        }
+      }
+    } else if (isSymlink(entryPath) && !checkLink(entryPath, entry.name)) {
+      return false;
+    }
+  }
+  return true;
+};
+
+/**
  * 清理指定 nlm 包的历史冲突残留（无冲突时调用，回归项目依赖解析）
  * 清点：.nlm/<pkg>/node_modules 下的冲突 symlink、.conflict-deps/<pkg>、app 包装包
  * best-effort：任何异常不影响主流程
@@ -956,8 +910,11 @@ export const checkAndHandleDependencyConflicts = async (
 
   const conflicts = detectDependencyConflicts(nlmPkg, project, workingDir);
   if (conflicts.length === 0) {
-    // 无冲突：清理该包的历史冲突残留（wrap / symlink / app 包装包），回归项目依赖解析
-    cleanupConflictState(packageName, workingDir);
+    // 无冲突：先复核清理安全性（声明与磁盘可能不一致，防误删仍被需要的链接），
+    // 再清理该包的历史冲突残留（wrap / symlink / app 包装包），回归项目依赖解析
+    if (canSafelyCleanupConflictLinks(packageName, nlmPkg, workingDir)) {
+      cleanupConflictState(packageName, workingDir);
+    }
     return false;
   }
 

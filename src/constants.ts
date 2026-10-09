@@ -1,5 +1,6 @@
 import { homedir } from 'os';
 import { join } from 'path';
+import { createHash } from 'crypto';
 
 /**
  * nlm 工具名称
@@ -143,10 +144,14 @@ export const getConflictDepsPackageDir = (
 
 /**
  * 将包名转换为合法的冲突依赖包装包名称
- * scoped 包 @scope/name → nlm-cd-scope-name
+ * scoped 包 @scope/name → nlm-cd-scope-name-<短哈希>
+ * 追加短哈希保证映射单射（避免 @a/b-c 与 @a-b/c 扁平化后碰撞，
+ * 防跨包误清理——该名称会用于 app node_modules 的删除等破坏性操作）
  */
 export const getConflictDepsPackageName = (packageName: string): string => {
-  return `${CONFLICT_DEPS_PKG_PREFIX}${packageName.replace('@', '').replace('/', '-')}`;
+  const flatName = packageName.replace('@', '').replace('/', '-');
+  const hash = createHash('sha1').update(packageName).digest('hex').slice(0, 8);
+  return `${CONFLICT_DEPS_PKG_PREFIX}${flatName}-${hash}`;
 };
 
 /**
