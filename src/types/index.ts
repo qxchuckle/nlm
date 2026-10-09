@@ -63,6 +63,8 @@ export interface PackageManifest {
   bundledDependencies?: string[];
   /** monorepo 工作区配置 */
   workspaces?: string[] | { packages?: string[]; nohoist?: string[] };
+  /** npm 依赖强制版本覆盖（作用于整棵依赖树） */
+  overrides?: Record<string, unknown>;
   scripts?: { [name: string]: string };
   /** 内部使用：保存原始缩进 */
   __indent?: string;
