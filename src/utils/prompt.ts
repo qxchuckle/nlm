@@ -39,6 +39,8 @@ export interface SelectConfigItemDefinition extends BaseConfigItemDefinition {
 export interface InputConfigItemDefinition extends BaseConfigItemDefinition {
   /** 配置类型 */
   type: 'input';
+  /** 允许为空（用于可选列表类配置） */
+  allowEmpty?: boolean;
 }
 
 /**
@@ -267,7 +269,8 @@ const promptInputItem = async (
     default: current || undefined,
     validate: (value) => {
       if (!value.trim()) {
-        return t('configInputRequired');
+        // 可选列表类配置允许留空表示「清空 / 不设置」
+        return item.allowEmpty ? true : t('configInputRequired');
       }
       return true;
     },

@@ -8,7 +8,11 @@ import {
   getPackageVersionsInStore,
   getAllPackagesInStore,
 } from '../core/store';
-import { addPackageToLockfile, isPackageInLockfile } from '../core/lockfile';
+import {
+  addPackageToLockfile,
+  getLockfilePackage,
+  isPackageInLockfile,
+} from '../core/lockfile';
 import { copyPackageToProject } from '../services/copy';
 import { checkAndHandleDependencyConflicts } from '../services/dependency';
 import { replaceNestedPackages } from '../services/nested';
@@ -106,12 +110,20 @@ const installPackage = async (
 
   // 替换嵌套的同名包（使用软链接指向 .nlm 中的包）
   logger.spinText(t('installReplaceNested'));
-  await replaceNestedPackages(workingDir, name, nlmPackageDir);
+  const nestedResult = await replaceNestedPackages(
+    workingDir,
+    name,
+    nlmPackageDir,
+  );
 
-  // 更新 lockfile
+  // 更新 lockfile（合并历次嵌套替换路径，供卸载时回收软链）
+  const previousNestedPaths = getLockfilePackage(workingDir, name)?.nestedPaths;
   addPackageToLockfile(workingDir, name, {
     version: effectiveRequestedVersion || LATEST_VERSION,
     signature: copyResult.signature,
+    nestedPaths: [
+      ...new Set([...(previousNestedPaths || []), ...nestedResult.paths]),
+    ],
   });
 
   // 更新 store 使用记录

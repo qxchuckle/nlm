@@ -8,10 +8,15 @@ import {
   packageExistsInStore,
 } from '../core/store';
 import { readInstalledPackageManifest, isValidProject } from '../utils/package';
+import { readPackageManifest } from '../utils/pkg-manifest';
 import { pathExistsSync, lstatSync } from '../utils/file';
 import { resolveVersion, compareVersions } from '../utils/version';
 import { getRuntime } from '../core/runtime';
-import { LATEST_VERSION, getProjectPackageDir } from '../constants';
+import {
+  LATEST_VERSION,
+  getProjectPackageDir,
+  getConflictDepsPackageDir,
+} from '../constants';
 import { NlmError } from '../types';
 import logger from '../utils/logger';
 import { t } from '../utils/i18n';
@@ -24,7 +29,25 @@ interface PackageStatus {
   linkOk: boolean;
   hasUpdate: boolean;
   inStore: boolean;
+  /** 已隔离安装的冲突依赖（包装包声明） */
+  conflictDeps: Array<{ name: string; version: string }>;
 }
+
+/**
+ * 读取已隔离安装的冲突依赖
+ * 以 wrap 包装包声明为准（即「因冲突而被单独安装」的依赖清单），零额外扫描成本
+ */
+const getConflictDeps = (
+  workingDir: string,
+  packageName: string,
+): Array<{ name: string; version: string }> => {
+  const wrapManifest = readPackageManifest(
+    getConflictDepsPackageDir(workingDir, packageName),
+  );
+  return Object.entries(wrapManifest?.dependencies || {}).map(
+    ([name, version]) => ({ name, version }),
+  );
+};
 
 const checkSymlink = (workingDir: string, packageName: string): boolean => {
   const nodeModulesPath = join(workingDir, 'node_modules', packageName);
@@ -71,6 +94,7 @@ const getPackageStatus = (
     linkOk,
     hasUpdate,
     inStore,
+    conflictDeps: getConflictDeps(workingDir, name),
   };
 };
 
@@ -155,6 +179,16 @@ const listProject = async (workingDir: string): Promise<void> => {
     if (entry?.target) {
       console.log(
         `  ${chalk.gray(t('statusSource'))} ${logger.path(entry.target)}`,
+      );
+    }
+    if (pkg.conflictDeps.length > 0) {
+      const depsText = pkg.conflictDeps
+        .map((dep) => logger.pkg(dep.name, dep.version))
+        .join(', ');
+      console.log(
+        `  ${chalk.gray(t('statusConflictDeps'))} ${chalk.yellow(
+          t('statusConflictIsolated', { count: pkg.conflictDeps.length }),
+        )} ${chalk.gray(depsText)}`,
       );
     }
   }

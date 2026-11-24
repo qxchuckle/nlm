@@ -1,4 +1,8 @@
-import { DEFAULT_CONFIG, NlmConfig } from '../types';
+import {
+  DEFAULT_CONFIG,
+  NlmConfig,
+  ResolvedConflictDepsConfig,
+} from '../types';
 import {
   getConfigPath,
   getProjectNlmDir,
@@ -45,6 +49,34 @@ export const readConfig = (params: {
     // logger.debug(`全局配置: ${logger.path(getGlobalConfigPath())}`);
     logger.debug(`全局配置内容: ${JSON.stringify(globalConfig)}`);
     config = { ...globalConfig, ...config };
+    // conflictDeps 为嵌套对象，逐字段合并：
+    // - 标量字段：项目级覆盖全局级
+    // - skip / host / install 名单：取并集（全局提供组织级默认，项目只做追加，避免丢失默认值）
+    if (globalConfig.conflictDeps || config.conflictDeps) {
+      const mergeList = (
+        base?: string[],
+        extra?: string[],
+      ): string[] | undefined => {
+        if (!base && !extra) return undefined;
+        return Array.from(new Set([...(base || []), ...(extra || [])]));
+      };
+      config.conflictDeps = {
+        ...globalConfig.conflictDeps,
+        ...config.conflictDeps,
+        skip: mergeList(
+          globalConfig.conflictDeps?.skip,
+          config.conflictDeps?.skip,
+        ),
+        host: mergeList(
+          globalConfig.conflictDeps?.host,
+          config.conflictDeps?.host,
+        ),
+        install: mergeList(
+          globalConfig.conflictDeps?.install,
+          config.conflictDeps?.install,
+        ),
+      };
+    }
   }
   const result = { ...DEFAULT_CONFIG, ...config };
   logger.debug(`配置合并结果: ${JSON.stringify(result)}`);
@@ -78,6 +110,33 @@ export const getConfiguredPackageManager = (workingDir: string): string => {
     initConfig: true,
   });
   return config.packageManager || DEFAULT_CONFIG.packageManager;
+};
+
+/**
+ * 获取冲突依赖配置（缺省值已补齐）
+ * 默认：peer 依赖由项目提供、构建期依赖不重复安装、其余冲突隔离安装
+ */
+export const getConflictDepsConfig = (
+  workingDir: string,
+): ResolvedConflictDepsConfig => {
+  const config = readConfig({
+    workingDir,
+    extendsGlobalConfig: true,
+    initConfig: true,
+  });
+  const raw = config.conflictDeps || {};
+  const strategy =
+    raw.strategy === 'skip' || raw.strategy === 'host'
+      ? raw.strategy
+      : 'install';
+  return {
+    strategy,
+    skipPeerDependencies: raw.skipPeerDependencies !== false,
+    skipBuildOnlyDependencies: raw.skipBuildOnlyDependencies !== false,
+    skip: Array.isArray(raw.skip) ? raw.skip : [],
+    host: Array.isArray(raw.host) ? raw.host : [],
+    install: Array.isArray(raw.install) ? raw.install : [],
+  };
 };
 
 /**

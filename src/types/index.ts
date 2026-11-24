@@ -6,6 +6,7 @@ export const DEFAULT_CONFIG: Required<NlmConfig> = {
   lang: 'auto',
   installForceLatest: false,
   pushForceLatest: false,
+  conflictDeps: {},
 };
 
 /**
@@ -90,6 +91,8 @@ export interface LockfilePackageEntry {
   version: string;
   /** 产物签名 hash */
   signature: string;
+  /** 被替换为 nlm 链接的嵌套包路径（相对工作目录，供卸载时回收） */
+  nestedPaths?: string[];
 }
 
 /**
@@ -119,6 +122,45 @@ export interface StoreConfig {
 }
 
 /**
+ * 冲突依赖处理策略
+ * - install：隔离安装到 .conflict-deps（现状行为）
+ * - skip：不安装，依赖解析回退到项目自身副本
+ * - host：不安装，并显式建链指向项目实体
+ */
+export type ConflictDepsStrategy = 'install' | 'skip' | 'host';
+
+/**
+ * 冲突依赖配置（nlm.config.json 的 conflictDeps 字段）
+ * 全部可缺省，缺省即 nlm 推荐默认：peer 依赖由项目提供、构建期依赖不重复安装
+ */
+export interface ConflictDepsConfig {
+  /** 默认策略（缺省 install） */
+  strategy?: ConflictDepsStrategy;
+  /** peerDependencies 冲突时不隔离安装（由项目提供），默认 true */
+  skipPeerDependencies?: boolean;
+  /** 产物中无运行时引用的依赖判为构建期依赖并跳过安装，默认 true */
+  skipBuildOnlyDependencies?: boolean;
+  /** 强制不安装的包名模式（支持 * 通配） */
+  skip?: string[];
+  /** 强制共享项目版本（不安装 + 链到项目实体）的包名模式 */
+  host?: string[];
+  /** 强制隔离安装的包名模式（优先级最高，用于覆盖默认裁决） */
+  install?: string[];
+}
+
+/**
+ * 规范化后的冲突依赖配置（缺省值已补齐）
+ */
+export interface ResolvedConflictDepsConfig {
+  strategy: ConflictDepsStrategy;
+  skipPeerDependencies: boolean;
+  skipBuildOnlyDependencies: boolean;
+  skip: string[];
+  host: string[];
+  install: string[];
+}
+
+/**
  * nlm.config.json 结构（项目配置）
  */
 export interface NlmConfig {
@@ -130,7 +172,14 @@ export interface NlmConfig {
   installForceLatest?: boolean;
   /** 推送时忽略 package.json 版本，强制推送到 store 中的最新版本 */
   pushForceLatest?: boolean;
+  /** 冲突依赖处理策略 */
+  conflictDeps?: ConflictDepsConfig;
 }
+
+/**
+ * 冲突依赖的来源声明
+ */
+export type DependencyConflictSource = 'dependencies' | 'peerDependencies';
 
 /**
  * 依赖冲突信息
@@ -142,6 +191,8 @@ export interface DependencyConflict {
   requiredVersion: string;
   /** 项目中安装的版本 */
   installedVersion: string;
+  /** 该依赖在 nlm 包中的声明位置（缺省视为 dependencies） */
+  source?: DependencyConflictSource;
 }
 
 /**

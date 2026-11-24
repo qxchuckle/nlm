@@ -103,7 +103,7 @@ nlm un
 
 ### config
 
-交互式配置 nlm，自动生成项目或全局配置
+交互式配置 nlm，自动生成项目或全局配置（需在终端中运行；非 TTY 环境请直接编辑配置文件）
 
 ```bash
 nlm config [options]
@@ -119,9 +119,22 @@ Options:
 ```json
 {
   "packageManager": "npm", // 指定使用的包管理器，用于需要时安装部分依赖，默认 npm
-  "lang": "auto" // 语言设置，auto 表示自动识别，zh 中文，en 英文，默认 auto
+  "lang": "auto", // 语言设置，auto 表示自动识别，zh 中文，en 英文，默认 auto
+  "conflictDeps": {
+    // 冲突依赖处理策略（全部可缺省）
+    "skipPeerDependencies": true, // peer 依赖由项目提供，不重复安装，默认 true
+    "skipBuildOnlyDependencies": true, // 产物无运行时引用的依赖视为构建期依赖，不重复安装，默认 true
+    "strategy": "install", // 兜底策略：install 隔离安装 / skip 不安装 / host 共享项目实体，默认 install
+    "skip": ["umi", "@umijs/*"], // 强制不安装（解析回退到项目自身副本），支持 * 通配
+    "host": ["react", "react-dom"], // 强制共享项目实体（不安装 + 链接到项目副本）
+    "install": ["some-sdk"] // 强制隔离安装（优先级最高）
+  }
 }
 ```
+
+冲突依赖的处理分三层：**能不装就不装**（peer / 构建期 / 配置规则）→ **装了也要复用项目实体**（版本完全相等或 semver 兼容时用软链指向项目已有副本，减少重复安装与内存）→ **兜底隔离安装**（确保可解析到要求版本）。
+
+配置过程会询问是否进入「冲突依赖策略」子项（默认否，日常只需改包管理器时不会被追问）；也可直接手改上面的 JSON。已隔离安装的冲突依赖可在 `nlm list` 中查看，嵌套替换路径由 `nlm-lock.json` 记录并在 `nlm uninstall` 时回收。
 
 ### search
 

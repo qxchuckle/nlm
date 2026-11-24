@@ -25,6 +25,7 @@
     "start": "node lib/cli.js",
     "prepublishOnly": "npm run build",
     "lint": "eslint --fix ./",
+    "test": "node --test tests/",
     "prepare": "husky"
   },
   "keywords": [

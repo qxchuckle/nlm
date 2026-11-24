@@ -127,6 +127,27 @@ export const zh = {
   configPushForceLatest: '推送时强制使用最新版本:',
   configSelectPushForceLatest:
     '推送时忽略 package.json 版本，强制推送到 store 中的最新版本',
+  configRequiresTty:
+    '交互式配置需要在终端（TTY）中运行；请直接编辑 {path} 或手写 JSON 配置',
+  configConfigureConflictDeps: '是否配置冲突依赖策略',
+  configConflictStrategy: '冲突依赖默认策略:',
+  configSelectConflictStrategy:
+    'install 隔离安装 / skip 不安装（用项目副本）/ host 共享项目实体',
+  configConflictSkipPeer: 'peer 依赖由项目提供:',
+  configSelectConflictSkipPeer:
+    'peerDependencies 冲突时不再重复安装（由项目提供，推荐 是）',
+  configConflictSkipBuildOnly: '构建期依赖不重复安装:',
+  configSelectConflictSkipBuildOnly:
+    '产物中无运行时引用的依赖判为构建期依赖并跳过安装（推荐 是）',
+  configConflictSkipList: '强制跳过安装:',
+  configSelectConflictSkipList:
+    '按包名强制跳过安装（逗号分隔，支持 * 通配；留空表示不设置）',
+  configConflictHostList: '强制共享项目版本:',
+  configSelectConflictHostList:
+    '按包名强制共享项目版本（逗号分隔，支持 * 通配；留空表示不设置）',
+  configConflictInstallList: '强制隔离安装:',
+  configSelectConflictInstallList:
+    '按包名强制隔离安装（逗号分隔，支持 * 通配；留空表示不设置）',
 
   // wizard 命令（交互式向导）
   cmdWizardDesc: '交互式向导，选择命令与参数并执行',
@@ -211,9 +232,31 @@ export const zh = {
   nestedReplaceSuccess: '已替换 {count} 个嵌套包',
 
   // dependency service
-  depConflictDetected: '检测到 {total} 依赖冲突，还需要安装 {need} 个',
+  depConflictDetected:
+    '检测到 {total} 个依赖冲突（隔离安装 {need} 个，跳过 {skipped} 个，共享项目版本 {shared} 个）',
   depNeedInstall: '[需要安装]',
   depAlreadyInstalled: '[已安装]',
+  depConflictSkipped: '[跳过安装]',
+  depConflictHost: '[共享项目版本]',
+  depReasonBuildOnly: '（构建期依赖，产物无运行时引用）',
+  depReasonPeerHost: '（peer 依赖由项目提供）',
+  depReasonConfigSkip: '（命中 conflictDeps.skip）',
+  depReasonConfigHost: '（命中 conflictDeps.host）',
+  depReasonConfigInstall: '（命中 conflictDeps.install）',
+  depReasonStrategy: '（命中 conflictDeps.strategy）',
+  depReasonFallback: '（项目未实际安装该依赖，改为隔离安装）',
+  depReuseSummary: '复用 {count} 个依赖指向项目现有副本',
+  depReuseSummaryCompatible: '（其中 {count} 个为 semver 兼容版本）',
+  depConflictHintInstall:
+    '提示：如需强制隔离安装，可在 .nlm/nlm.config.json 增加 "conflictDeps": { "install": {pkgs} }',
+  statusConflictDeps: '冲突依赖',
+  statusConflictIsolated: '隔离 {count}',
+  lockWaiting: '另一个 nlm 进程正在操作该项目，等待其完成...',
+  lockBusy: '项目被其它 nlm 进程占用（{path}），等待超时',
+  uninstallNestedRestored:
+    '已移除 {count} 处嵌套软链，请重新安装依赖以恢复原始嵌套包',
+  pushMisplacedBuildDeps:
+    '疑似构建期依赖声明在 dependencies：{pkgs}（产物中无运行时引用）。安装到项目时会触发冲突检测与重复安装，建议移到 devDependencies，或改为 peerDependencies + peerDependenciesMeta.optional',
   depRequires: '需要 {version}',
   depProjectHas: '项目中 {version}',
   depInstallFailed: '安装冲突依赖失败',

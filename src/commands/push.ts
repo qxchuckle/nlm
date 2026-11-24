@@ -4,6 +4,10 @@ import { readPackageManifest } from '../utils/package';
 import { copyPackageToStore } from '../services/copy';
 import { runPackageManagerScript } from '../services/dependency';
 import {
+  collectRuntimeSpecifiers,
+  findMisplacedBuildDependencies,
+} from '../services/conflict-strategy';
+import {
   setPackageTarget,
   getPackageUsages,
   getPackageVersionsInStore,
@@ -165,6 +169,18 @@ export const push = async (): Promise<void> => {
         latest: storeLatestVersion,
         version: effectiveVersion,
       }),
+    );
+  }
+
+  // 生态侧引导：构建期工具声明在 dependencies 会在安装侧触发冲突检测与重复安装
+  // （产物已构建完成，此处扫描结论可信；扫描不可判定时静默跳过）
+  const misplacedBuildDeps = findMisplacedBuildDependencies(
+    pkg,
+    collectRuntimeSpecifiers(workingDir, pkg),
+  );
+  if (misplacedBuildDeps.length > 0) {
+    logger.warn(
+      t('pushMisplacedBuildDeps', { pkgs: misplacedBuildDeps.join(', ') }),
     );
   }
 

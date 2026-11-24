@@ -117,12 +117,13 @@ export const findAllNestedPackages = (
 /**
  * 替换所有嵌套的同名包
  * 将嵌套包指向 nlm 安装的版本（使用软链接）
+ * 返回替换数量与被替换路径（相对工作目录，供 lockfile 记录与卸载时回收）
  */
 export const replaceNestedPackages = async (
   workingDir: string,
   packageName: string,
   sourceDir: string,
-): Promise<number> => {
+): Promise<{ replaced: number; paths: string[] }> => {
   const nodeModulesDir = join(workingDir, 'node_modules');
 
   // 查找所有嵌套的同名包（排除顶层）
@@ -140,11 +141,12 @@ export const replaceNestedPackages = async (
   );
 
   if (nestedPaths.length === 0) {
-    return 0;
+    return { replaced: 0, paths: [] };
   }
 
   // 替换所有嵌套包（使用软链接）
   let replaced = 0;
+  const replacedPaths: string[] = [];
   for (const nestedPath of nestedPaths) {
     try {
       // 删除嵌套包
@@ -161,6 +163,7 @@ export const replaceNestedPackages = async (
         }),
       );
       replaced++;
+      replacedPaths.push(relative(workingDir, nestedPath));
     } catch (error) {
       logger.debug(t('nestedReplaceFailed', { path: nestedPath }));
       logger.debug(String(error));
@@ -171,7 +174,7 @@ export const replaceNestedPackages = async (
     logger.debug(t('nestedReplaceSuccess', { count: replaced }));
   }
 
-  return replaced;
+  return { replaced, paths: replacedPaths };
 };
 
 /**

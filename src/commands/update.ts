@@ -163,14 +163,21 @@ export const updateSinglePackage = async (name: string): Promise<boolean> => {
 
   startTime = Date.now();
   // 替换嵌套的同名包（使用软链接）
-  await replaceNestedPackages(workingDir, name, nlmPackageDir);
+  const nestedResult = await replaceNestedPackages(
+    workingDir,
+    name,
+    nlmPackageDir,
+  );
   logger.debug('replaceNested', logger.duration(startTime));
 
-  // 更新 lockfile 中的 signature
+  // 更新 lockfile 中的 signature（合并历次嵌套替换路径，卸载时据此回收软链）
   // installForceLatest 开启时实际安装的是 latest，lockfile 同步记录 latest 以保持一致
   addPackageToLockfile(workingDir, name, {
     version: nlmConfig.installForceLatest ? LATEST_VERSION : lockEntry.version,
     signature: copyResult.signature,
+    nestedPaths: [
+      ...new Set([...(lockEntry.nestedPaths || []), ...nestedResult.paths]),
+    ],
   });
   return true;
 };

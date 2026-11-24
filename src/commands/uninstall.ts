@@ -1,4 +1,5 @@
-import { join } from 'path';
+import fs from 'fs-extra';
+import { dirname, join, resolve } from 'path';
 import { NlmError } from '../types';
 import {
   PROJECT_NLM_DIR,
@@ -12,13 +13,20 @@ import {
   getPackageScope,
   validatePackageNameIsInstalled,
 } from '../utils/package';
-import { removeSync, pathExistsSync, readdirSync } from '../utils/file';
+import {
+  removeSync,
+  pathExistsSync,
+  readdirSync,
+  isSymlink,
+} from '../utils/file';
 import { removePackageUsage } from '../core/store';
 import {
   removePackageFromLockfile,
   getLockfilePackageNames,
+  getLockfilePackage,
 } from '../core/lockfile';
 import { getRuntime } from '../core/runtime';
+import { withProjectLock } from '../utils/lock';
 import logger from '../utils/logger';
 import { t } from '../utils/i18n';
 import { promptMultiSelectPro } from '../utils/prompt';
@@ -29,9 +37,42 @@ export interface UninstallOptions {
 }
 
 /**
+ * 回收安装时替换的嵌套软链
+ * 原始嵌套副本已被删除，只能移除指向 .nlm 的软链，交由包管理器重装恢复
+ */
+const removeNestedLinks = (
+  workingDir: string,
+  packageName: string,
+  nestedPaths?: string[],
+): void => {
+  if (!nestedPaths || nestedPaths.length === 0) return;
+  const nlmPkgDir = resolve(getProjectPackageDir(workingDir, packageName));
+  let removed = 0;
+  for (const relativePath of nestedPaths) {
+    const linkPath = join(workingDir, relativePath);
+    if (!isSymlink(linkPath)) continue;
+    try {
+      const linkTarget = fs.readlinkSync(linkPath);
+      const resolvedTarget = resolve(dirname(linkPath), linkTarget);
+      if (resolvedTarget !== nlmPkgDir) continue;
+      removeSync(linkPath);
+      removed += 1;
+    } catch {
+      // 无法读取的链接跳过
+    }
+  }
+  if (removed > 0) {
+    logger.warn(t('uninstallNestedRestored', { count: removed }));
+  }
+};
+
+/**
  * 卸载单个包
  */
 const uninstallPackage = (workingDir: string, name: string): void => {
+  // 先取 lockfile 记录（含嵌套替换路径），后续步骤会移除该条目
+  const lockEntry = getLockfilePackage(workingDir, name);
+
   // 从 node_modules 中移除软链接
   const nodeModulesPath = join(workingDir, 'node_modules', name);
   if (pathExistsSync(nodeModulesPath)) {
@@ -87,6 +128,9 @@ const uninstallPackage = (workingDir: string, name: string): void => {
   if (pathExistsSync(conflictNmPath)) {
     removeSync(conflictNmPath);
   }
+
+  // 回收安装时替换的嵌套软链（否则卸载后会在 app 树里留下悬空链接）
+  removeNestedLinks(workingDir, name, lockEntry?.nestedPaths);
 };
 
 /**
@@ -142,10 +186,12 @@ export const uninstall = async (
   const pkgListStr = validNames.map((n) => logger.pkg(n)).join(' ');
   logger.spin(t('uninstallPackage', { pkg: pkgListStr }));
 
-  // 卸载所有包
-  for (const name of validNames) {
-    uninstallPackage(workingDir, name);
-  }
+  // 卸载所有包（.nlm 域写操作纳入项目锁，防与其它 nlm 进程互踩）
+  await withProjectLock(workingDir, async () => {
+    for (const name of validNames) {
+      uninstallPackage(workingDir, name);
+    }
+  });
 
   // 检查 .nlm 目录是否为空
   // const nlmDir = join(workingDir, PROJECT_NLM_DIR);

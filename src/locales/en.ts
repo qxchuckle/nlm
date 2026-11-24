@@ -150,6 +150,27 @@ export const en = {
   configPushForceLatest: 'Force latest on push:',
   configSelectPushForceLatest:
     'Ignore package.json version on push, always push to store latest version',
+  configRequiresTty:
+    'Interactive config requires a TTY; edit {path} directly or write the JSON config manually',
+  configConfigureConflictDeps: 'Configure conflict dependency strategy',
+  configConflictStrategy: 'Default conflict strategy:',
+  configSelectConflictStrategy:
+    'install (isolated) / skip (use project copy) / host (share project entity)',
+  configConflictSkipPeer: 'Peer dependencies provided by project:',
+  configSelectConflictSkipPeer:
+    'Do not reinstall conflicting peerDependencies (provided by project, recommended yes)',
+  configConflictSkipBuildOnly: 'Skip build-time dependencies:',
+  configSelectConflictSkipBuildOnly:
+    'Skip dependencies without runtime reference in the output (recommended yes)',
+  configConflictSkipList: 'Force skip:',
+  configSelectConflictSkipList:
+    'Force skip by package name (comma separated, * wildcard; empty to unset)',
+  configConflictHostList: 'Force share project version:',
+  configSelectConflictHostList:
+    'Share the project copy by package name (comma separated, * wildcard; empty to unset)',
+  configConflictInstallList: 'Force isolated install:',
+  configSelectConflictInstallList:
+    'Force isolated install by package name (comma separated, * wildcard; empty to unset)',
 
   // Common errors
   errInvalidProject:
@@ -227,9 +248,30 @@ export const en = {
 
   // dependency service
   depConflictDetected:
-    'Detected {total} dependency conflicts, {need} need to be installed',
+    'Detected {total} dependency conflicts ({need} to install, {skipped} skipped, {shared} shared with project)',
   depNeedInstall: '[need install]',
   depAlreadyInstalled: '[installed]',
+  depConflictSkipped: '[skipped]',
+  depConflictHost: '[shared with project]',
+  depReasonBuildOnly: ' (build-time dependency, no runtime reference)',
+  depReasonPeerHost: ' (peer dependency provided by project)',
+  depReasonConfigSkip: ' (matched conflictDeps.skip)',
+  depReasonConfigHost: ' (matched conflictDeps.host)',
+  depReasonConfigInstall: ' (matched conflictDeps.install)',
+  depReasonStrategy: ' (matched conflictDeps.strategy)',
+  depReasonFallback: ' (not installed in project, installed in isolation)',
+  depReuseSummary: 'Reused {count} dependencies pointing to the project copy',
+  depReuseSummaryCompatible: ' ({count} semver-compatible)',
+  depConflictHintInstall:
+    'Hint: to force isolated installation, add "conflictDeps": { "install": {pkgs} } to .nlm/nlm.config.json',
+  statusConflictDeps: 'Conflicts',
+  statusConflictIsolated: 'isolated {count}',
+  lockWaiting: 'Another nlm process is operating this project, waiting...',
+  lockBusy: 'Project is locked by another nlm process ({path}), wait timed out',
+  uninstallNestedRestored:
+    'Removed {count} nested symlinks, reinstall dependencies to restore nested copies',
+  pushMisplacedBuildDeps:
+    'Build-time dependencies declared in "dependencies": {pkgs} (no runtime reference in output). They trigger conflict detection and duplicate installs; move them to devDependencies or peerDependencies + peerDependenciesMeta.optional',
   depRequires: 'requires {version}',
   depProjectHas: 'project has {version}',
   depInstallFailed: 'Failed to install conflicting dependencies',
