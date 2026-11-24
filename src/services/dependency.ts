@@ -20,7 +20,11 @@ import {
 } from '../core/config';
 import { ConflictDecision, decideConflictActions } from './conflict-strategy';
 import { applyReuseOptimizations } from './dependency-reuse';
-import { PackageManagerKind, detectPackageManagerKind } from './pm';
+import {
+  PackageManagerKind,
+  buildWrapInstallCommand,
+  detectPackageManagerKind,
+} from './pm';
 import { getRuntime } from '../core/runtime';
 import {
   ensureDirSync,
@@ -550,26 +554,9 @@ const runConflictDepsInstall = async (
   workingDir: string,
   conflictPkgDir: string,
 ): Promise<void> => {
-  let command: string;
-  switch (kind) {
-    case 'wrap-pnpm': {
-      // app 为全局虚拟店时跟随启用（依赖实体与 app 同路径，零后置处理共享）
-      const globalStoreOpt = isPnpmGlobalVirtualStoreApp(workingDir)
-        ? ' --config.enable-global-virtual-store=true'
-        : '';
-      command = `${pm} install --ignore-workspace --lockfile=false --prefer-offline --config.strict-peer-dependencies=false${globalStoreOpt}`;
-      break;
-    }
-    case 'wrap-yarn':
-      command = `${pm} install --no-lockfile --prefer-offline`;
-      break;
-    case 'wrap-npm':
-      command = `${pm} install --no-package-lock --prefer-offline --legacy-peer-deps`;
-      break;
-    default:
-      command = `${pm} install`;
-      break;
-  }
+  const command = buildWrapInstallCommand(pm, kind, {
+    globalVirtualStore: isPnpmGlobalVirtualStoreApp(workingDir),
+  });
   const cwd = conflictPkgDir;
   logger.info(
     t('depDebugRunCommand', {
